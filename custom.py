@@ -1,7 +1,6 @@
-# It also gets current state and reward earned with the action.
-# <episodes> number of episodes are played. 
-# Random combination of buttons is chosen for every action.
-# Game variables from state and last reward are printed.
+#
+# custom agents added here
+#
 
 from random import choice
 import itertools
