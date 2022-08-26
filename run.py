@@ -7,6 +7,7 @@ import itertools
 import numpy as np
 from time import sleep
 import vizdoom as vzd
+from agents import *
 
 def get_game():
     # create and configure a game instance
@@ -34,6 +35,7 @@ def main():
 
     # collect action choices
     actions = get_all_possible_action_combinations(game)
+    random_agent = RandomAgent(actions)
 
     # iteration
     episodes = 1
@@ -58,7 +60,9 @@ def main():
             sectors = state.sectors
 
             # take an action
-            current_action = choice(actions)
+            current_action = random_agent.get_action()
+
+            # get reward
             reward = game.make_action(current_action)
             current_total_reward = game.get_total_reward()
 
