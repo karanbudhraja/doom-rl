@@ -54,20 +54,27 @@ class PolicyFunction(torch.nn.Module):
         return policy
 
 class PolicyAgent(object):
-    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=2):
+    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=100):
         super().__init__()
         self.actions = actions
         self.action_to_index = dict()
         for (index, action) in enumerate(actions):
             self.action_to_index[str(action)] = index
 
+        # parameters
         self.epsilon = epsilon
         self.gamma = gamma
         self.data_buffer = dict()
         self.data_buffer_size = data_buffer_size
 
+        # learning
         self.policy_function = PolicyFunction(actions, input_size)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
+
+        # logging
+        self.log_file_name = "loss.txt"
+        with open(self.log_file_name, "a") as log_file:
+            log_file.truncate()
 
     def add_to_data_buffer(self, index, state, action, reward, total_reward, next_state):
         # check buffer limite
@@ -108,6 +115,10 @@ class PolicyAgent(object):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        # write to file
+        with open(self.log_file_name, "a") as log_file:
+            log_file.write(str(loss.item()) + "\n")
 
     def get_action(self, state):
         # convert image data to normalized tensor

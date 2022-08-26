@@ -42,7 +42,7 @@ def main():
     policy_agent = PolicyAgent(actions, input_size)
 
     # iteration
-    episodes = 3
+    episodes = 10000
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     for index in range(episodes):
         # start new episode
