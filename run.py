@@ -35,10 +35,14 @@ def main():
 
     # collect action choices
     actions = get_all_possible_action_combinations(game)
+    input_size = (game.get_screen_channels(), game.get_screen_height(), game.get_screen_width())
+
+    # define agents
     random_agent = RandomAgent(actions)
+    policy_agent = PolicyAgent(actions, input_size)
 
     # iteration
-    episodes = 1
+    episodes = 10
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     for index in range(episodes):
         # start new episode
@@ -48,28 +52,35 @@ def main():
             # get current state
             state = game.get_state()
 
-            # Which consists of:
-            state_number = state.number
-            game_variables = state.game_variables
-            screen_buf = state.screen_buffer
-            depth_buf = state.depth_buffer
-            labels_buf = state.labels_buffer
-            automap_buf = state.automap_buffer
-            labels = state.labels
-            objects = state.objects
-            sectors = state.sectors
+            #
+            # state consists of:
+            #
+            # state.number
+            # state.game_variables
+            # state.screen_buffer
+            # state.depth_buffer
+            # state.labels_buffer
+            # state.automap_buffer
+            # state.labels
+            # state.objects
+            # state.sectors
 
             # take an action
-            current_action = random_agent.get_action()
-
+            # current_action = random_agent.get_action()
+            action = policy_agent.get_action(state)
+            next_state = game.get_state()
+            
             # get reward
-            reward = game.make_action(current_action)
+            reward = game.make_action(action)
             current_total_reward = game.get_total_reward()
+
+            # add to data buffer
+            policy_agent.add_to_data_buffer(state, action, reward, next_state) 
 
             # logging
             print("Episode #" + str(index + 1))
-            print("State #" + str(state_number))
-            print("Game variables:", game_variables)
+            print("State #" + str(state.number))
+            print("Game variables:", state.game_variables)
             print("Reward:", reward)
             print("Total reward:", current_total_reward)
             print("=====================")
