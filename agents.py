@@ -64,9 +64,9 @@ class PolicyAgent(object):
         self.policy_function = PolicyFunction(actions, input_size)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
 
-    def add_to_data_buffer(self, index, state, action, reward, next_state):
+    def add_to_data_buffer(self, index, state, action, reward, total_reward, next_state):
         index_data_buffer = self.data_buffer.get(index, [])
-        index_data_buffer.append([state, action, reward, next_state])
+        index_data_buffer.append([state, action, reward, total_reward, next_state])
         self.data_buffer[index] = index_data_buffer
 
         if(len(self.data_buffer) >= self.data_buffer_size):
@@ -78,6 +78,8 @@ class PolicyAgent(object):
 
     def update(self):
         print("todo: update")
+
+        # for each state-action pair, what is the average reward seen in the future?
 
     def get_action(self, state):
         # convert image data to normalized tensor

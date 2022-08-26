@@ -48,6 +48,9 @@ def main():
         # start new episode
         game.new_episode()
 
+        print(dir(game))
+        return
+
         while not game.is_episode_finished():
             # get current state
             state = game.get_state()
@@ -72,10 +75,10 @@ def main():
             
             # get reward
             reward = game.make_action(action)
-            current_total_reward = game.get_total_reward()
+            total_reward = game.get_total_reward()
 
             # add to data buffer
-            policy_agent.add_to_data_buffer(index, state, action, reward, next_state) 
+            policy_agent.add_to_data_buffer(index, state, action, reward, total_reward, next_state) 
 
             # logging
             print("Episode #" + str(index + 1))
