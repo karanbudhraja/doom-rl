@@ -58,14 +58,16 @@ class PolicyAgent(object):
         self.actions = actions
         self.epsilon = epsilon
         self.gamma = gamma
-        self.data_buffer = []
+        self.data_buffer = dict()
         self.data_buffer_size = data_buffer_size
 
         self.policy_function = PolicyFunction(actions, input_size)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
 
-    def add_to_data_buffer(self, state, action, reward, next_state):
-        self.data_buffer.append([state, action, reward, next_state])
+    def add_to_data_buffer(self, index, state, action, reward, next_state):
+        index_data_buffer = self.data_buffer.get(index, [])
+        index_data_buffer.append([state, action, reward, next_state])
+        self.data_buffer[index] = index_data_buffer
 
         if(len(self.data_buffer) >= self.data_buffer_size):
             # update model

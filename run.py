@@ -75,7 +75,7 @@ def main():
             current_total_reward = game.get_total_reward()
 
             # add to data buffer
-            policy_agent.add_to_data_buffer(state, action, reward, next_state) 
+            policy_agent.add_to_data_buffer(index, state, action, reward, next_state) 
 
             # logging
             print("Episode #" + str(index + 1))
