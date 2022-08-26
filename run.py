@@ -42,14 +42,11 @@ def main():
     policy_agent = PolicyAgent(actions, input_size)
 
     # iteration
-    episodes = 10
+    episodes = 3
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     for index in range(episodes):
         # start new episode
         game.new_episode()
-
-        print(dir(game))
-        return
 
         while not game.is_episode_finished():
             # get current state
@@ -69,7 +66,7 @@ def main():
             # state.sectors
 
             # take an action
-            # current_action = random_agent.get_action()
+            # action = random_agent.get_action()
             action = policy_agent.get_action(state)
             next_state = game.get_state()
             
@@ -85,14 +82,14 @@ def main():
             print("State #" + str(state.number))
             print("Game variables:", state.game_variables)
             print("Reward:", reward)
-            print("Total reward:", current_total_reward)
+            print("Total reward:", total_reward)
             print("=====================")
 
             # sleep
-            sleep(sleep_time)
+            # sleep(sleep_time)
 
         # episode results
-        print("Episode total reward:", current_total_reward)
+        print("Episode total reward:", total_reward)
 
     # cleanup
     game.close()

@@ -1,3 +1,4 @@
+from importlib.metadata import requires
 from random import choice
 import torch
 
@@ -56,6 +57,10 @@ class PolicyAgent(object):
     def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=2):
         super().__init__()
         self.actions = actions
+        self.action_to_index = dict()
+        for (index, action) in enumerate(actions):
+            self.action_to_index[str(action)] = index
+
         self.epsilon = epsilon
         self.gamma = gamma
         self.data_buffer = dict()
@@ -65,21 +70,44 @@ class PolicyAgent(object):
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
 
     def add_to_data_buffer(self, index, state, action, reward, total_reward, next_state):
-        index_data_buffer = self.data_buffer.get(index, [])
-        index_data_buffer.append([state, action, reward, total_reward, next_state])
-        self.data_buffer[index] = index_data_buffer
-
-        if(len(self.data_buffer) >= self.data_buffer_size):
+        # check buffer limite
+        if((len(self.data_buffer) >= self.data_buffer_size) and (index not in self.data_buffer)):
             # update model
             self.update()
             
             # empty buffer
-            self.data_buffer = []
+            self.data_buffer.clear()
+
+        # add new data
+        index_data_buffer = self.data_buffer.get(index, [])
+        index_data_buffer.append([state, action, reward, total_reward, next_state])
+        self.data_buffer[index] = index_data_buffer
 
     def update(self):
-        print("todo: update")
+        # for each episode, calculate the log probability and reward
+        loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
+        for episode in self.data_buffer:
+            total_log_action_probability = torch.tensor(0, dtype=torch.float32, requires_grad=True)
+            total_discounted_reward = torch.tensor(0, dtype=torch.float32, requires_grad=True)
+            for (index, data) in enumerate(self.data_buffer[episode]):
+                [state, action, reward, _, _] = data
+                input_data = torch.Tensor(state.screen_buffer) / 255
+                action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
+                log_action_probability = torch.log(action_probability)
+                discounted_reward = torch.tensor((self.gamma**index) * reward, requires_grad=True)
+                total_log_action_probability = total_log_action_probability + log_action_probability
+                total_discounted_reward = total_discounted_reward + discounted_reward
+            
+            # add to loss
+            loss = loss + (total_log_action_probability * total_discounted_reward)
 
-        # for each state-action pair, what is the average reward seen in the future?
+        # calculate mean
+        loss = -1 * loss / len(self.data_buffer)
+
+        # update model
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     def get_action(self, state):
         # convert image data to normalized tensor
@@ -87,8 +115,6 @@ class PolicyAgent(object):
 
         # get optimal action based on current policy
         policy = self.policy_function(data)
-
-        print(policy)
         action = self.actions[torch.argmax(policy)]
 
         # use epsilon-greedy policy
