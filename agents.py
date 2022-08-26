@@ -53,7 +53,7 @@ class PolicyFunction(torch.nn.Module):
         return policy
 
 class PolicyAgent(object):
-    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=100):
+    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=2):
         super().__init__()
         self.actions = actions
         self.epsilon = epsilon
@@ -87,6 +87,8 @@ class PolicyAgent(object):
 
         # get optimal action based on current policy
         policy = self.policy_function(data)
+
+        print(policy)
         action = self.actions[torch.argmax(policy)]
 
         # use epsilon-greedy policy
