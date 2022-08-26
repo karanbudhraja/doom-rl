@@ -42,7 +42,7 @@ def main():
     policy_agent = PolicyAgent(actions, input_size)
 
     # iteration
-    episodes = 10000
+    episodes = 10
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     for index in range(episodes):
         # start new episode
@@ -67,7 +67,7 @@ def main():
 
             # take an action
             # action = random_agent.get_action()
-            action = policy_agent.get_action(state)
+            action = policy_agent.get_action(state.screen_buffer)
             next_state = game.get_state()
             
             # get reward
@@ -75,7 +75,7 @@ def main():
             total_reward = game.get_total_reward()
 
             # add to data buffer
-            policy_agent.add_to_data_buffer(index, state, action, reward, total_reward, next_state) 
+            policy_agent.add_to_data_buffer(index, state.screen_buffer, action, reward, next_state.screen_buffer) 
 
             # logging
             print("Episode #" + str(index + 1))

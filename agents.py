@@ -54,7 +54,7 @@ class PolicyFunction(torch.nn.Module):
         return policy
 
 class PolicyAgent(object):
-    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=100):
+    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=2):
         super().__init__()
         self.actions = actions
         self.action_to_index = dict()
@@ -76,7 +76,7 @@ class PolicyAgent(object):
         with open(self.log_file_name, "a") as log_file:
             log_file.truncate()
 
-    def add_to_data_buffer(self, index, state, action, reward, total_reward, next_state):
+    def add_to_data_buffer(self, index, state, action, reward, next_state):
         # check buffer limite
         if((len(self.data_buffer) >= self.data_buffer_size) and (index not in self.data_buffer)):
             # update model
@@ -87,7 +87,7 @@ class PolicyAgent(object):
 
         # add new data
         index_data_buffer = self.data_buffer.get(index, [])
-        index_data_buffer.append([state, action, reward, total_reward, next_state])
+        index_data_buffer.append([state, action, reward, next_state])
         self.data_buffer[index] = index_data_buffer
 
     def update(self):
@@ -97,8 +97,8 @@ class PolicyAgent(object):
             total_log_action_probability = torch.tensor(0, dtype=torch.float32, requires_grad=True)
             total_discounted_reward = torch.tensor(0, dtype=torch.float32, requires_grad=True)
             for (index, data) in enumerate(self.data_buffer[episode]):
-                [state, action, reward, _, _] = data
-                input_data = torch.Tensor(state.screen_buffer) / 255
+                [state, action, reward, _] = data
+                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True) / 255
                 action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
                 log_action_probability = torch.log(action_probability)
                 discounted_reward = torch.tensor((self.gamma**index) * reward, requires_grad=True)
@@ -122,7 +122,7 @@ class PolicyAgent(object):
 
     def get_action(self, state):
         # convert image data to normalized tensor
-        data = torch.Tensor(state.screen_buffer) / 255
+        data = torch.tensor(state) / 255
 
         # get optimal action based on current policy
         policy = self.policy_function(data)
