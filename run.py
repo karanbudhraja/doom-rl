@@ -9,6 +9,10 @@ from time import sleep
 import vizdoom as vzd
 from agents import *
 
+import os
+import datetime
+import calendar
+
 def get_game():
     # create and configure a game instance
     game = vzd.DoomGame()
@@ -29,6 +33,13 @@ def get_all_possible_action_combinations(game):
     return actions
 
 def main():
+    # directory dependencies
+    log_directory_name = "logs"
+    data_directory_name = "data_buffer"
+    os.makedirs(log_directory_name, exist_ok=True)
+    os.makedirs(data_directory_name, exist_ok=True)
+    data_file_extension = ".doom"
+
     # create instance and initialize
     game = get_game()
     game.init()
@@ -39,14 +50,15 @@ def main():
 
     # define agents
     random_agent = RandomAgent(actions)
-    policy_agent = PolicyAgent(actions, input_size)
+    policy_agent = PolicyAgent(actions, input_size, data_buffer_size=10)
 
     # iteration
     episodes = 10
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     for index in range(episodes):
         # start new episode
-        game.new_episode()
+        episode_name = str(calendar.timegm(datetime.datetime.now().timetuple())) + data_file_extension
+        game.new_episode(os.path.join(data_directory_name, episode_name))
 
         while not game.is_episode_finished():
             # get current state
@@ -78,18 +90,19 @@ def main():
             policy_agent.add_to_data_buffer(index, state.screen_buffer, action, reward, next_state.screen_buffer) 
 
             # logging
-            print("Episode #" + str(index + 1))
-            print("State #" + str(state.number))
-            print("Game variables:", state.game_variables)
-            print("Reward:", reward)
-            print("Total reward:", total_reward)
-            print("=====================")
+            # print("=====================")
+            # print("Episode #" + str(index + 1))
+            # print("State #" + str(state.number))
+            # print("Game variables:", state.game_variables)
+            # print("Reward:", reward)
+            # print("Total reward:", total_reward)
+            # print("=====================")
 
             # sleep
             # sleep(sleep_time)
 
         # episode results
-        print("Episode total reward:", total_reward)
+        print("episode", index, "total reward:", total_reward)
 
     # cleanup
     game.close()

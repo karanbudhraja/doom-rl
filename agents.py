@@ -1,6 +1,7 @@
 from importlib.metadata import requires
 from random import choice
 import torch
+import gc
 
 class RandomAgent(object):
     def __init__(self, actions):
@@ -49,12 +50,12 @@ class PolicyFunction(torch.nn.Module):
         policy = self.linear_1(policy)
         policy = torch.nn.functional.relu(policy)
         policy = self.linear_2(policy)
-        policy = torch.nn.functional.softmax(policy)
+        policy = torch.nn.functional.softmax(policy, dim=-1)
 
         return policy
 
 class PolicyAgent(object):
-    def __init__(self, actions, input_size, alpha=0.001, epsilon=0, gamma=0.99, data_buffer_size=2):
+    def __init__(self, actions, input_size, data_buffer_size=1, alpha=0.001, epsilon=0, gamma=0.99):
         super().__init__()
         self.actions = actions
         self.action_to_index = dict()
@@ -80,10 +81,11 @@ class PolicyAgent(object):
         # check buffer limite
         if((len(self.data_buffer) >= self.data_buffer_size) and (index not in self.data_buffer)):
             # update model
-            self.update()
+            # self.update()
             
             # empty buffer
             self.data_buffer.clear()
+            gc.collect()
 
         # add new data
         index_data_buffer = self.data_buffer.get(index, [])
