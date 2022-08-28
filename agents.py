@@ -75,13 +75,39 @@ class PolicyAgent(object):
         self.policy_function = PolicyFunction(actions, input_size)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
 
-    def update(self, game):
+    def update(self):
         # replay episodes
         print("UPDATE CALLED")
 
         for episode_file_name in os.listdir(self.data_directory_name):
             episode_file_path = os.path.join(self.data_directory_name, episode_file_name)
             print(episode_file_path)
+
+            total_log_action_probability = torch.tensor(0, dtype=torch.float32, requires_grad=True)
+            total_discounted_reward = torch.tensor(0, dtype=torch.float32, requires_grad=True)
+
+            # states_visited = 0
+            # while not game.is_episode_finished():
+            #     state = game.get_state()
+            #     game.advance_action()
+            #     reward = game.get_last_reward()
+
+
+            #     input_data = torch.tensor(state.screen_buffer, dtype=torch.float32, requires_grad=True) / 255
+            #     action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
+            #     log_action_probability = torch.log(action_probability)
+            #     discounted_reward = torch.tensor((self.gamma**states_visited) * reward, requires_grad=True)
+            #     total_log_action_probability = total_log_action_probability + log_action_probability
+            #     total_discounted_reward = total_discounted_reward + discounted_reward
+
+
+
+            #     states_visited += 1
+
+            #     print(dir(state))
+            #     exit(0)
+            #     pass
+
 
             # clear directory
             os.remove(episode_file_path)
