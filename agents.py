@@ -8,21 +8,22 @@ from collections import deque
 import os
 
 class RandomAgent(object):
-    def __init__(self, number_of_actions):
+    def __init__(self, device, number_of_actions):
         super().__init__()
         self.number_of_actions = number_of_actions
+        self.batch_size = np.inf
 
-    def get_policy(self, state, episode_number):
-        # get a random policy
-        policy = torch.rand((1,self.number_of_actions))
+    def get_action(self, state):
+        # get a random action
+        action = torch.randint(self.number_of_actions, (1,1)).item()
 
-        return policy
+        return action
 
     def update(self):
-        # generate random number
-        loss = torch.rand((1,1))
+        pass
 
-        return loss.item()
+    def append_memory(self, state, action, reward, next_state, done):
+        pass
 
 class DQNAgent:
     class DuelQNet(nn.Module):
@@ -124,7 +125,7 @@ class DQNAgent:
 
         return action
 
-    def update_target_net(self):
+    def update(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
 
     def append_memory(self, state, action, reward, next_state, done):

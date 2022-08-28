@@ -91,7 +91,7 @@ def run(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=200
 
             global_step += 1
 
-        agent.update_target_net()
+        agent.update()
         train_scores = np.array(train_scores)
 
         # training results
@@ -152,7 +152,8 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda')
         torch.backends.cudnn.benchmark = True
-    agent = agents.DQNAgent(device, len(actions))
+    # agent = agents.DQNAgent(device, len(actions))
+    agent = agents.RandomAgent(device, len(actions))
 
     # run training and testing
     run(game, actions, agent)
