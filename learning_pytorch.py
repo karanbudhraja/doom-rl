@@ -193,15 +193,7 @@ class DuelQNet(nn.Module):
         )
 
     def forward(self, x):
-
-        print("in forward")
-        print(x.shape)
-
         x = self.conv1(x)
-
-        print(x.shape)
-        exit(0)
-
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
