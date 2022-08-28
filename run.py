@@ -15,32 +15,10 @@ from tqdm import trange
 import agents
 
 #
-# initialization
+# functions
 #
 
-# learing settings
-learning_rate = 0.00025
-discount_factor = 0.99
-train_epochs = 5
-learning_steps_per_epoch = 2000
-replay_memory_size = 10000
-
-batch_size = 64
-test_episodes_per_epoch = 100
-
-# other parameters
-frame_repeat = 12
-resolution = (30, 45)
-episodes_to_watch = 10
-
-model_savefile = "./model-doom.pth"
-save_model = True
-load_model = False
-
-# configuration file path
-configuration_file_path = os.path.join(vzd.scenarios_path, "basic.cfg")
-
-def preprocess_image_data(image_data):
+def preprocess_image_data(image_data, resolution=(30,45)):
     # downsample image
     # add dimension to align with having multiple channels
     image_data = skimage.transform.resize(image_data, resolution)
@@ -49,8 +27,9 @@ def preprocess_image_data(image_data):
 
     return image_data
 
-def create_game():
+def create_game(configuration_file_name="basic.cfg"):
     game = vzd.DoomGame()
+    configuration_file_path = os.path.join(vzd.scenarios_path, configuration_file_name)
     game.load_config(configuration_file_path)
     game.set_window_visible(False)
     game.set_mode(vzd.Mode.PLAYER)
@@ -60,7 +39,7 @@ def create_game():
 
     return game
 
-def test(game, agent):
+def test(game, agent, frame_repeat, test_episodes_per_epoch=100):
     # run test episodes and print result
     test_scores = []
     for test_episode in trange(test_episodes_per_epoch, leave=False):
@@ -76,7 +55,11 @@ def test(game, agent):
     test_scores = np.array(test_scores)
     print("Test results: mean: %.1f +/- %.1f," % (test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(), "max: %.1f" % test_scores.max())
 
-def run(game, agent, actions, num_epochs, frame_repeat, steps_per_epoch=2000):
+def run(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, episodes_to_watch=10, save_model=True):
+    #
+    # training
+    #
+    
     # run training episodes
     # skip a few frames after each action
     for epoch in range(num_epochs):
@@ -96,6 +79,7 @@ def run(game, agent, actions, num_epochs, frame_repeat, steps_per_epoch=2000):
             else:
                 next_state = np.zeros((1, 30, 45)).astype(np.float32)
 
+            # add to data buffer
             agent.append_memory(state, action, reward, next_state, done)
 
             if global_step > agent.batch_size:
@@ -115,36 +99,18 @@ def run(game, agent, actions, num_epochs, frame_repeat, steps_per_epoch=2000):
               "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
 
         # testing results
-        test(game, agent)
+        test(game, agent, frame_repeat)
         if save_model:
-            print("Saving the network weights to:", model_savefile)
-            torch.save(agent.q_net, model_savefile)
+            print("Saving the network weights to:", agent.model_save_file_path)
+            torch.save(agent.q_net, agent.model_save_file_path)
 
     game.close()
-    return agent, game
 
-if __name__ == '__main__':
-    # initialize game and get all possible actions
-    game = create_game()
-    number_of_buttons = game.get_available_buttons_size()
-    actions = [list(a) for a in it.product([0, 1], repeat=number_of_buttons)]
+    #
+    # testing
+    #
 
-    # Initialize our agent with the set parameters
-    # use gpu if available
-    device = torch.device('cpu')
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-        torch.backends.cudnn.benchmark = True
-
-    agent = agents.DQNAgent(len(actions), lr=learning_rate, batch_size=batch_size,
-                     memory_size=replay_memory_size, discount_factor=discount_factor,
-                     load_model=load_model, device=device)
-
-    # Run the training for the set number of epochs
-    agent, game = run(game, agent, actions, num_epochs=train_epochs, frame_repeat=frame_repeat,
-                        steps_per_epoch=learning_steps_per_epoch)
-
-    # Reinitialize the game with window visible
+    # reinitialize the game with window visible
     game.close()
     game.set_window_visible(True)
     game.set_mode(vzd.Mode.ASYNC_PLAYER)
@@ -165,3 +131,28 @@ if __name__ == '__main__':
         sleep(1.0)
         score = game.get_total_reward()
         print("Total score: ", score)
+
+#
+# main
+#
+
+if __name__ == '__main__':
+    #
+    # initialization
+    #
+
+    # initialize game and get all possible actions
+    game = create_game()
+    number_of_buttons = game.get_available_buttons_size()
+    actions = [list(a) for a in it.product([0, 1], repeat=number_of_buttons)]
+
+    # initialize agent
+    # use gpu if available
+    device = torch.device('cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        torch.backends.cudnn.benchmark = True
+    agent = agents.DQNAgent(device, len(actions))
+
+    # run training and testing
+    run(game, actions, agent)

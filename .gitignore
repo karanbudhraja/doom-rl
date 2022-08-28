@@ -2,4 +2,3 @@ _vizdoom
 _vizdoom.ini
 __pycache__
 logs
-data_buffer

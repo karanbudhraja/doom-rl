@@ -5,8 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 from collections import deque
-
-model_savefile = "./model-doom.pth"
+import os
 
 class RandomAgent(object):
     def __init__(self, number_of_actions):
@@ -84,23 +83,28 @@ class DQNAgent:
 
             return x
 
-    def __init__(self, action_size, memory_size, batch_size, discount_factor, 
-                 lr, load_model, device, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1):
+    def __init__(self, device, action_size, memory_size=10000, batch_size=64, 
+                 lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
+                 load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
+        self.device = device
         self.action_size = action_size
+        self.memory = deque(maxlen=memory_size)
+        self.batch_size = batch_size
+        self.lr = lr
+        self.discount = discount_factor
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
-        self.batch_size = batch_size
-        self.discount = discount_factor
-        self.lr = lr
-        self.memory = deque(maxlen=memory_size)
+        os.makedirs(log_directory_name, exist_ok=True)
+        self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
+
+
         self.criterion = nn.MSELoss()
-        self.device = device
 
         if load_model:
-            print("Loading model from: ", model_savefile)
-            self.q_net = torch.load(model_savefile)
-            self.target_net = torch.load(model_savefile)
+            print("Loading model from: ", self.model_save_file_path)
+            self.q_net = torch.load(self.model_save_file_path)
+            self.target_net = torch.load(self.model_save_file_path)
             self.epsilon = self.epsilon_min
 
         else:
