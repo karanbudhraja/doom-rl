@@ -25,6 +25,9 @@ class PolicyAgent(object):
         def __init__(self, input_size, number_of_actions) -> None:
             super().__init__()
 
+            print(input_size)
+            exit(0)
+
             # neural network layers
             self.convolution_1 = torch.nn.Sequential(torch.nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
                                                     torch.nn.BatchNorm2d(8),
