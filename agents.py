@@ -41,7 +41,7 @@ class PolicyAgent(object):
             self.linear_1 = torch.nn.Sequential(torch.nn.Linear(192, 64),
                                                 torch.nn.ReLU())
             self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, number_of_actions),
-                                                torch.nn.Softmax(dim=0))
+                                                torch.nn.Softmax(dim=-1))
 
         def forward(self, state):
             # calculate action probabilities
@@ -116,7 +116,7 @@ class PolicyAgent(object):
  
             print("in update", input_data.shape)
 
-            x = self.policy_function(input_data)
+            action_policiies = self.policy_function(input_data)
 
 
             print("jere")
