@@ -57,7 +57,7 @@ class PolicyAgent(object):
 
     def __init__(self, actions, input_size, data_directory_name,
                 states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
-                alpha=0.001, epsilon=0.0, gamma=1):
+                alpha=0.001, epsilon=0.5, epsilon_decay=0.99, gamma=1):
         super().__init__()
 
         # available actions
@@ -75,6 +75,7 @@ class PolicyAgent(object):
 
         # parameters
         self.epsilon = epsilon
+        self.episilon_decay = epsilon_decay
         self.gamma = gamma
 
         # learning
@@ -90,12 +91,9 @@ class PolicyAgent(object):
         policy = self.policy_function(data)
 
         # use epsilon-greedy policy
-        if(torch.rand((1,1)).item() < self.epsilon):
+        if(torch.rand((1,1)).item() < (self.epsilon * (self.episilon_decay**episode_number))):
             # get a random policy
             policy = torch.rand((1,self.number_of_actions))
-
-            # epsilon decay
-            self.epsilon = self.epsilon
 
         return policy
 
@@ -127,7 +125,6 @@ class PolicyAgent(object):
             # episode_loss = -1 * total_log_policy * total_discounted_reward
             episode_loss = -1 * total_discounted_reward
             loss = loss + episode_loss
-            print("episode details", torch.sum(rewards), total_discounted_reward, episode_loss)
 
         # calculate mean loss
         loss = loss / episode_count
