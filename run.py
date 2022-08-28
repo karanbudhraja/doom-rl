@@ -45,7 +45,7 @@ def get_state_data(state):
 
 def get_reward_data(reward):
     # transform data
-    reward = expit(reward)
+    # reward = expit(reward)
 
     return reward
 
@@ -85,8 +85,8 @@ def main():
     # iteration
     #
 
-    iterations = 1
-    episodes_per_iteration = 1
+    iterations = 100
+    episodes_per_iteration = 10
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     iteration_average_loss_values = []
     iteration_average_total_reward_values = []
