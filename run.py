@@ -152,8 +152,8 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda')
         torch.backends.cudnn.benchmark = True
-    # agent = agents.DQNAgent(device, len(actions))
-    agent = agents.RandomAgent(device, len(actions))
+    # agent = agents.RandomAgent(device, len(actions))
+    agent = agents.DQNAgent(device, len(actions))
 
     # run training and testing
     run(game, actions, agent)

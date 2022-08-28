@@ -34,41 +34,24 @@ class DQNAgent:
 
         def __init__(self, available_actions_count):
             super().__init__()
-            self.conv1 = nn.Sequential(
-                nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                nn.BatchNorm2d(8),
-                nn.ReLU()
-            )
-
-            self.conv2 = nn.Sequential(
-                nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                nn.BatchNorm2d(8),
-                nn.ReLU()
-            )
-
-            self.conv3 = nn.Sequential(
-                nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                nn.BatchNorm2d(8),
-                nn.ReLU()
-            )
-
-            self.conv4 = nn.Sequential(
-                nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                nn.BatchNorm2d(16),
-                nn.ReLU()
-            )
-
-            self.state_fc = nn.Sequential(
-                nn.Linear(96, 64),
-                nn.ReLU(),
-                nn.Linear(64, 1)
-            )
-
-            self.advantage_fc = nn.Sequential(
-                nn.Linear(96, 64),
-                nn.ReLU(),
-                nn.Linear(64, available_actions_count)
-            )
+            self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+                                        nn.BatchNorm2d(8),
+                                        nn.ReLU())
+            self.conv2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+                                        nn.BatchNorm2d(8),
+                                        nn.ReLU())
+            self.conv3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+                                        nn.BatchNorm2d(8),
+                                        nn.ReLU())
+            self.conv4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+                                        nn.BatchNorm2d(16),
+                                        nn.ReLU())
+            self.state_fc = nn.Sequential(nn.Linear(96, 64),
+                                        nn.ReLU(),
+                                        nn.Linear(64, 1))
+            self.advantage_fc = nn.Sequential(nn.Linear(96, 64),
+                                                nn.ReLU(),
+                                                nn.Linear(64, available_actions_count))
 
         def forward(self, x):
             x = self.conv1(x)
@@ -91,15 +74,12 @@ class DQNAgent:
         self.action_size = action_size
         self.memory = deque(maxlen=memory_size)
         self.batch_size = batch_size
-        self.lr = lr
         self.discount = discount_factor
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
         os.makedirs(log_directory_name, exist_ok=True)
         self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
-
-
         self.criterion = nn.MSELoss()
 
         if load_model:
@@ -113,7 +93,7 @@ class DQNAgent:
             self.q_net = self.DuelQNet(action_size).to(self.device)
             self.target_net = self.DuelQNet(action_size).to(self.device)
 
-        self.opt = optim.SGD(self.q_net.parameters(), lr=self.lr)
+        self.opt = optim.SGD(self.q_net.parameters(), lr=lr)
 
     def get_action(self, state):
         if np.random.uniform() < self.epsilon:
