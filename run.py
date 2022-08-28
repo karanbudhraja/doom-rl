@@ -11,11 +11,13 @@ import agents
 import os
 import pickle
 import matplotlib.pyplot as plt
+import skimage.transform
 
 def get_game():
     # create and configure a game instance
     game = vzd.DoomGame()
     game.load_config("scenarios/basic.cfg")
+    game.set_screen_format(vzd.ScreenFormat.GRAY8)
 
     return game
 
@@ -41,6 +43,14 @@ def get_all_actions(game):
         actions.append(current_action)
 
     return actions
+
+def get_state_data(state):
+    # extract state data from state object
+    state_data = state.screen_buffer.astype(np.float32)
+    state_data = skimage.transform.resize(state_data, (30, 45))
+    state_data = np.expand_dims(state_data, axis=0)
+
+    return state_data
 
 def main():
     #
@@ -103,14 +113,14 @@ def main():
 
                 # take an action
                 # action = random_agent.get_action()
-                action = policy_agent.get_action(state.screen_buffer, episode_index+1)
+                action = policy_agent.get_action(get_state_data(state), episode_index+1)
                 next_state = game.get_state()
                 
                 # get reward
                 reward = game.make_action(action)
 
                 # record data
-                current_data = {"state": state.screen_buffer, "action": action, "reward": reward, "next_state": next_state.screen_buffer}
+                current_data = {"state": get_state_data(state), "action": action, "reward": reward, "next_state": get_state_data(next_state)}
                 episode_data.append(current_data)
 
                 # sleep

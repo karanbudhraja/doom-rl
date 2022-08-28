@@ -21,37 +21,31 @@ class PolicyAgent(object):
             self.actions = actions
 
             # neural network layers
-            self.convolution_1 = torch.nn.Conv2d(input_size[0], input_size[0], 11, 4)
-            self.pooling_1 = torch.nn.MaxPool2d(3, 2)
-            self.convolution_2 = torch.nn.Conv2d(input_size[0], input_size[0], 5, 1, 2)
-            self.pooling_2 = torch.nn.MaxPool2d(3, 2)
-            self.convolution_3 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            self.convolution_4 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            self.convolution_5 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            self.pooling_3 = torch.nn.MaxPool2d(3, 2)
-            self.linear_1 = torch.nn.Linear(144, 144)
-            self.linear_2 = torch.nn.Linear(144, len(actions))
+            self.convolution_1 = torch.nn.Sequential(torch.nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+                                                    torch.nn.ReLU())
+            self.convolution_2 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+                                                    torch.nn.ReLU())
+            self.convolution_3 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+                                                    torch.nn.ReLU())
+            self.convolution_4 = torch.nn.Sequential(torch.nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+                                                    torch.nn.ReLU())
+            self.maxpool_1 = torch.nn.MaxPool1d(2)
+            self.linear_1 = torch.nn.Sequential(torch.nn.Linear(96, 64),
+                                                torch.nn.ReLU())
+            self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, len(actions)),
+                                                torch.nn.Softmax(dim=-1))
 
         def forward(self, state):
             # calculate action probabilities
-            policy = self.convolution_1(state)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.pooling_1(policy)
-            policy = self.convolution_2(policy)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.pooling_2(policy)
-            policy = self.convolution_3(policy)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.convolution_4(policy)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.convolution_5(policy)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.pooling_3(policy)
-            policy = torch.flatten(policy)
-            policy = self.linear_1(policy)
-            policy = torch.nn.functional.relu(policy)
-            policy = self.linear_2(policy)
-            policy = torch.nn.functional.softmax(policy, dim=-1)
+            state = self.convolution_1(state)
+            state = self.convolution_2(state)
+            state = self.convolution_3(state)
+            state = self.convolution_4(state)
+            state = torch.permute(state, (0, 2, 1))
+            state = self.maxpool_1(state)
+            state = torch.flatten(state)
+            state = self.linear_1(state)
+            policy = self.linear_2(state)
 
             return policy
 
@@ -96,7 +90,7 @@ class PolicyAgent(object):
                 reward = current_data["reward"]
 
                 # calculate loss contribution
-                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True) / 255
+                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True)
                 action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
                 log_action_probability = torch.log(action_probability)
                 discounted_reward = torch.tensor((self.gamma**index) * reward, requires_grad=True)
@@ -118,7 +112,7 @@ class PolicyAgent(object):
 
     def get_action(self, state, episode_number):
         # convert image data to normalized tensor
-        data = torch.tensor(state, dtype=torch.float32) / 255
+        data = torch.tensor(state, dtype=torch.float32)
 
         # get optimal action based on current policy
         policy = self.policy_function(data)
