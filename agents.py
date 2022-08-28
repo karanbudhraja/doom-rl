@@ -49,14 +49,11 @@ class PolicyAgent(object):
             state = self.convolution_2(state)
             state = self.convolution_3(state)
             state = self.convolution_4(state)
-            # state = torch.flatten(state)
-            #state = state.reshape()
+            state = state.reshape((state.shape[0], -1))
             state = self.linear_1(state)
-            # policy = self.linear_2(state)
+            policy = self.linear_2(state)
 
-            # return policy
-
-            return state
+            return policy
 
     def __init__(self, actions, input_size, data_directory_name,
                 states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 

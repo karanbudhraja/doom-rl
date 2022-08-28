@@ -111,11 +111,7 @@ def main():
 
                 # take an action
                 policy = agent.get_policy(np.expand_dims(get_state_data(state), axis=0), episode_index+1).clone().detach().numpy()
-                # action = actions[np.argmax(policy)]
-                action = actions[0]
-                
-                x = np.expand_dims(get_state_data(state), axis=0)
-                print("x size", x.shape)
+                action = actions[np.argmax(policy)]
 
                 # get next state and action reward
                 next_state = game.get_state()
