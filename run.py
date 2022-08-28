@@ -2,15 +2,15 @@
 # custom agents added here
 #
 
-from random import choice
 import itertools
 import numpy as np
 from time import sleep
 import vizdoom as vzd
-from agents import *
+import agents
 
 import os
 import pickle
+import matplotlib.pyplot as plt
 
 def get_game():
     # create and configure a game instance
@@ -52,8 +52,8 @@ def main():
     game.close()
 
     # define agents
-    random_agent = RandomAgent(actions)
-    policy_agent = PolicyAgent(actions, input_size, data_directory_name)
+    random_agent = agents.RandomAgent(actions)
+    policy_agent = agents.PolicyAgent(actions, input_size, data_directory_name)
 
     # create instance and initialize
     game = get_game()
@@ -66,19 +66,30 @@ def main():
     iterations = 5
     episodes_per_iteration = 3
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
-    
-    for _ in range(iterations):
+    iteration_average_loss_values = []
+    iteration_average_total_reward_values = []
+
+    for iteration_index in range(iterations):
 
         #
         # interact with the world and gather data
         #
 
-        for index in range(episodes_per_iteration):
+        print("Iteration", iteration_index+1)
+
+        # clean directory
+        for episode_file_name in os.listdir(data_directory_name):
+            episode_file_path = os.path.join(data_directory_name, episode_file_name)
+            os.remove(episode_file_path)
+
+        # gather data
+        for episode_index in range(episodes_per_iteration):
             # start new episode
-            episode_file_name = str(index).zfill(4) + data_file_extension
+            episode_file_name = str(episode_index).zfill(4) + data_file_extension
             episode_file_path = os.path.join(data_directory_name, episode_file_name)
             game.new_episode()
             episode_data = []
+            total_rewards = []
 
             while not game.is_episode_finished():
                 # get current state
@@ -93,27 +104,39 @@ def main():
                 reward = game.make_action(action)
                 total_reward = game.get_total_reward()
 
-                current_data = {"state": state.screen_buffer, "action": action, "reward": reward}
+                # record data
+                current_data = {"state": state.screen_buffer, "action": action, "reward": reward, "next_state": next_state.screen_buffer}
                 episode_data.append(current_data)
+
+                # sleep
+                # sleep(sleep_time)
 
             # save episode data
             with open(episode_file_path, "wb") as episode_data_file:
                 pickle.dump(episode_data, episode_data_file)
 
-            # sleep
-            # sleep(sleep_time)
-
             # episode results
-            print("episode", index, "total reward:", total_reward)
+            total_rewards.append(total_reward)
 
         #
         # update model
         #
 
-        policy_agent.update()
+        iteration_average_loss = policy_agent.update()
+        iteration_average_total_reward = np.mean(total_rewards)
+        iteration_average_loss_values.append(iteration_average_loss)
+        iteration_average_total_reward_values.append(iteration_average_total_reward)
 
     # cleanup
     game.close()
+
+    # display information
+    plt.figure()
+    plt.plot(iteration_average_loss_values)
+    plt.savefig(os.path.join(log_directory_name, "iteration_average_loss_values.pdf"))
+    plt.figure()
+    plt.plot(iteration_average_total_reward_values)
+    plt.savefig(os.path.join(log_directory_name, "iteration_average_total_reward_values.pdf"))
 
 if __name__ == "__main__":
     main()
