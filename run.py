@@ -10,8 +10,6 @@ import vizdoom as vzd
 from agents import *
 
 import os
-import datetime
-import calendar
 
 def get_game():
     # create and configure a game instance
@@ -33,79 +31,85 @@ def get_all_possible_action_combinations(game):
     return actions
 
 def main():
+    #
+    # initialization
+    #
+
     # directory dependencies
     log_directory_name = "logs"
     data_directory_name = "data_buffer"
     os.makedirs(log_directory_name, exist_ok=True)
     os.makedirs(data_directory_name, exist_ok=True)
-    data_file_extension = ".doom"
+    data_file_extension = ".lmp"
 
     # create instance and initialize
+    # collect action choices
     game = get_game()
     game.init()
-
-    # collect action choices
     actions = get_all_possible_action_combinations(game)
     input_size = (game.get_screen_channels(), game.get_screen_height(), game.get_screen_width())
+    game.close()
 
     # define agents
     random_agent = RandomAgent(actions)
-    policy_agent = PolicyAgent(actions, input_size, data_buffer_size=10)
+    policy_agent = PolicyAgent(actions, input_size, data_directory_name)
 
+    #
     # iteration
-    episodes = 10
+    #
+
+    iterations = 5
+    episodes_per_iteration = 3
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
-    for index in range(episodes):
-        # start new episode
-        episode_name = str(calendar.timegm(datetime.datetime.now().timetuple())) + data_file_extension
-        game.new_episode(os.path.join(data_directory_name, episode_name))
+    
+    for iteration in range(iterations):
+        # create instance and initialize
+        game = get_game()
+        game.init()
 
-        while not game.is_episode_finished():
-            # get current state
-            state = game.get_state()
+        #
+        # interact with the world and gather data
+        #
 
-            #
-            # state consists of:
-            #
-            # state.number
-            # state.game_variables
-            # state.screen_buffer
-            # state.depth_buffer
-            # state.labels_buffer
-            # state.automap_buffer
-            # state.labels
-            # state.objects
-            # state.sectors
+        for index in range(episodes_per_iteration):
+            # start new episode
+            episode_file_name = str(index).zfill(4) + data_file_extension
+            episode_file_path = os.path.join(data_directory_name, episode_file_name)
+            game.new_episode(episode_file_path)
 
-            # take an action
-            # action = random_agent.get_action()
-            action = policy_agent.get_action(state.screen_buffer)
-            next_state = game.get_state()
-            
-            # get reward
-            reward = game.make_action(action)
-            total_reward = game.get_total_reward()
+            while not game.is_episode_finished():
+                # get current state
+                state = game.get_state()
 
-            # add to data buffer
-            policy_agent.add_to_data_buffer(index, state.screen_buffer, action, reward, next_state.screen_buffer) 
-
-            # logging
-            # print("=====================")
-            # print("Episode #" + str(index + 1))
-            # print("State #" + str(state.number))
-            # print("Game variables:", state.game_variables)
-            # print("Reward:", reward)
-            # print("Total reward:", total_reward)
-            # print("=====================")
+                # take an action
+                # action = random_agent.get_action()
+                action = policy_agent.get_action(state.screen_buffer)
+                next_state = game.get_state()
+                
+                # get reward
+                reward = game.make_action(action)
+                total_reward = game.get_total_reward()
 
             # sleep
             # sleep(sleep_time)
 
-        # episode results
-        print("episode", index, "total reward:", total_reward)
+            # episode results
+            print("episode", index, "total reward:", total_reward)
 
-    # cleanup
-    game.close()
+            # clear current game buffer and ensure file save
+            game.new_episode()
+
+        # cleanup
+        game.close()
+
+        #
+        # update model
+        #
+
+        # create instance and initialize
+        game = get_game()
+        game.init()
+        policy_agent.update(game)
 
 if __name__ == "__main__":
     main()
