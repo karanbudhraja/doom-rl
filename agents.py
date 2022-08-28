@@ -57,7 +57,7 @@ class PolicyAgent(object):
 
     def __init__(self, actions, input_size, data_directory_name,
                 states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
-                alpha=0.001, epsilon=0.0, gamma=0.99):
+                alpha=0.001, epsilon=0.0, gamma=0.999):
         super().__init__()
 
         # available actions
@@ -107,50 +107,34 @@ class PolicyAgent(object):
         for episode_directory_name in os.listdir(self.data_directory_name):
             # load episide data
             episode_directory_path = os.path.join(self.data_directory_name, episode_directory_name)
-            states = np.load(os.path.join(episode_directory_path, self.states_file_name))
-            action_policies = np.load(os.path.join(episode_directory_path, self.action_policies_file_name))
-            rewards = np.load(os.path.join(episode_directory_path, self.rewards_file_name))
+            states = torch.tensor(np.load(os.path.join(episode_directory_path, self.states_file_name)),
+                                    dtype=torch.float32, requires_grad=True)
+            observed_action_policies = torch.tensor(np.load(os.path.join(episode_directory_path, self.action_policies_file_name)),
+                                    dtype=torch.float32, requires_grad=True)
+            rewards = torch.tensor(np.load(os.path.join(episode_directory_path, self.rewards_file_name)),
+                                    dtype=torch.float32, requires_grad=True)
 
             # calculate loss
-            input_data = torch.tensor(states, dtype=torch.float32, requires_grad=True)
- 
-            print("in update", input_data.shape)
+            action_policies = self.policy_function(states) 
+            log_policy_values = torch.log(action_policies) * observed_action_policies
+            total_log_policy = torch.sum(log_policy_values)
+            reward_discounts = torch.tensor(np.array([self.gamma**index for index in range(action_policies.shape[0])]),
+                                            dtype=torch.float32, requires_grad=True)
+            rewards = rewards * reward_discounts
 
-            action_policiies = self.policy_function(input_data)
+            print(rewards)
 
 
-            print("jere")
-            print(states.shape, x.shape)
+            total_discounted_reward = torch.sum(rewards)
+            episode_loss = -1 * total_log_policy * total_discounted_reward
+            loss = loss + episode_loss
+
+            print(total_log_policy, total_discounted_reward, episode_loss)
+
             exit(0)
             
-            
-            
-            
-            
-            with open(episode_file_path, "rb") as episode_data_file: 
-                episode_data = pickle.load(episode_data_file)
-
-            total_log_action_probability = torch.tensor(0, dtype=torch.float32, requires_grad=True)
-            total_discounted_reward = torch.tensor(0, dtype=torch.float32, requires_grad=True)
-            for (index, current_data) in enumerate(episode_data):
-                # read data
-                state = current_data["state"]
-                action = current_data["action"]
-                reward = current_data["reward"]
-
-                # calculate loss contribution
-                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True)
-                action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
-                log_action_probability = torch.log(action_probability)
-                discounted_reward = torch.tensor((self.gamma**index) * reward, requires_grad=True)
-                total_log_action_probability = total_log_action_probability + log_action_probability
-                total_discounted_reward = total_discounted_reward + discounted_reward
-            
-            # add episode loss to total loss
-            loss = loss + (total_log_action_probability * total_discounted_reward)
-
         # calculate mean loss
-        loss = -1 * loss / episode_count
+        loss = loss / episode_count
 
         # update model
         self.optimizer.zero_grad()

@@ -111,13 +111,10 @@ def main():
 
                 # take an action
                 action_policy = agent.get_policy(np.expand_dims(get_state_data(state), axis=0), episode_index+1).clone().detach().numpy()
-
-
-                print(action_policy)
-                exit(0)
-
-
-                action = actions[np.argmax(action_policy)]
+                boolean_action_policy = [False] * len(action_policy[0])
+                boolean_action_policy[np.argmax(action_policy)] = True
+                boolean_action_policy = np.array(boolean_action_policy, dtype=np.float32)
+                action = actions[np.argmax(boolean_action_policy)]
 
                 # get next state and action reward
                 next_state = game.get_state()
@@ -125,7 +122,7 @@ def main():
 
                 # record data
                 states.append(get_state_data(state))
-                action_policies.append(action_policy)
+                action_policies.append(boolean_action_policy)
                 rewards.append(reward)
                 next_states.append(get_state_data(next_state))
 
