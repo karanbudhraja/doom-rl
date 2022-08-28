@@ -108,6 +108,7 @@ def main():
             os.makedirs(episode_directory_path, exist_ok=True)
 
             game.init()
+            game.set_seed(0)
             game.new_episode()
             states = []
             action_policies = []
