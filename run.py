@@ -1,180 +1,167 @@
 #
-# custom agents added here
+# library dependencies
 #
 
-import itertools
-import numpy as np
-from time import sleep
 import vizdoom as vzd
-import agents
+import torch
+import numpy as np
+import itertools as it
+import skimage.transform
 
 import os
-import matplotlib.pyplot as plt
-import skimage.transform
-import shutil
-from scipy.special import expit
+from time import sleep
+from tqdm import trange
 
-def get_game():
-    # create and configure a game instance
+import agents
+
+#
+# initialization
+#
+
+# learing settings
+learning_rate = 0.00025
+discount_factor = 0.99
+train_epochs = 5
+learning_steps_per_epoch = 2000
+replay_memory_size = 10000
+
+batch_size = 64
+test_episodes_per_epoch = 100
+
+# other parameters
+frame_repeat = 12
+resolution = (30, 45)
+episodes_to_watch = 10
+
+model_savefile = "./model-doom.pth"
+save_model = True
+load_model = False
+
+# configuration file path
+configuration_file_path = os.path.join(vzd.scenarios_path, "basic.cfg")
+
+def preprocess_image_data(image_data):
+    # downsample image
+    # add dimension to align with having multiple channels
+    image_data = skimage.transform.resize(image_data, resolution)
+    image_data = image_data.astype(np.float32)
+    image_data = np.expand_dims(image_data, axis=0)
+
+    return image_data
+
+def create_game():
     game = vzd.DoomGame()
-    game.load_config("scenarios/basic.cfg")
+    game.load_config(configuration_file_path)
+    game.set_window_visible(False)
+    game.set_mode(vzd.Mode.PLAYER)
     game.set_screen_format(vzd.ScreenFormat.GRAY8)
+    game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
+    game.init()
 
     return game
 
-def get_all_possible_action_combinations(game):
-    # get all possible combinations of discrete actions
-    action_space_size = game.get_available_buttons_size()
-    actions = []
-    for combination_size in range(0, action_space_size+1):
-        for actions_subset in itertools.combinations(range(action_space_size), combination_size):
-            current_action = np.array([False] * action_space_size)
-            current_action[list(actions_subset)] = True
-            actions.append(current_action)
+def test(game, agent):
+    # run test episodes and print result
+    test_scores = []
+    for test_episode in trange(test_episodes_per_epoch, leave=False):
+        game.new_episode()
+        while not game.is_episode_finished():
+            state = preprocess_image_data(game.get_state().screen_buffer)
+            best_action_index = agent.get_action(state)
 
-    return actions
+            game.make_action(actions[best_action_index], frame_repeat)
+        r = game.get_total_reward()
+        test_scores.append(r)
 
-def get_state_data(state):
-    # extract state data from state object
-    # transform data
-    state_data = state.screen_buffer.astype(np.float32)
-    state_data = skimage.transform.resize(state_data, (30, 45))
-    state_data = np.expand_dims(state_data, axis=0)
+    test_scores = np.array(test_scores)
+    print("Test results: mean: %.1f +/- %.1f," % (test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(), "max: %.1f" % test_scores.max())
 
-    return state_data
+def run(game, agent, actions, num_epochs, frame_repeat, steps_per_epoch=2000):
+    # run training episodes
+    # skip a few frames after each action
+    for epoch in range(num_epochs):
+        game.new_episode()
+        train_scores = []
+        global_step = 0
+        print("\nEpoch #" + str(epoch + 1))
 
-def get_reward_data(reward):
-    # transform data
-    # reward = expit(reward)
+        for _ in trange(steps_per_epoch, leave=False):
+            state = preprocess_image_data(game.get_state().screen_buffer)
+            action = agent.get_action(state)
+            reward = game.make_action(actions[action], frame_repeat)
+            done = game.is_episode_finished()
 
-    return reward
+            if not done:
+                next_state = preprocess_image_data(game.get_state().screen_buffer)
+            else:
+                next_state = np.zeros((1, 30, 45)).astype(np.float32)
 
-def main():
-    #
-    # initialization
-    #
+            agent.append_memory(state, action, reward, next_state, done)
 
-    # directory dependencies
-    log_directory_name = "logs"
-    data_directory_name = "data_buffer"
-    os.makedirs(log_directory_name, exist_ok=True)
-    os.makedirs(data_directory_name, exist_ok=True)
-    data_file_extension = ".npy"
-    states_file_name = "states" + data_file_extension
-    action_policies_file_name = "action_policies" + data_file_extension
-    rewards_file_name = "rewards" + data_file_extension
-    next_states_file_name = "next_states" + data_file_extension
+            if global_step > agent.batch_size:
+                agent.train()
 
-    # create instance and initialize
-    # collect action choices
-    game = get_game()
+            if done:
+                train_scores.append(game.get_total_reward())
+                game.new_episode()
+
+            global_step += 1
+
+        agent.update_target_net()
+        train_scores = np.array(train_scores)
+
+        # training results
+        print("Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),
+              "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
+
+        # testing results
+        test(game, agent)
+        if save_model:
+            print("Saving the network weights to:", model_savefile)
+            torch.save(agent.q_net, model_savefile)
+
+    game.close()
+    return agent, game
+
+if __name__ == '__main__':
+    # initialize game and get all possible actions
+    game = create_game()
+    number_of_buttons = game.get_available_buttons_size()
+    actions = [list(a) for a in it.product([0, 1], repeat=number_of_buttons)]
+
+    # Initialize our agent with the set parameters
+    # use gpu if available
+    device = torch.device('cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        torch.backends.cudnn.benchmark = True
+
+    agent = agents.DQNAgent(len(actions), lr=learning_rate, batch_size=batch_size,
+                     memory_size=replay_memory_size, discount_factor=discount_factor,
+                     load_model=load_model, device=device)
+
+    # Run the training for the set number of epochs
+    agent, game = run(game, agent, actions, num_epochs=train_epochs, frame_repeat=frame_repeat,
+                        steps_per_epoch=learning_steps_per_epoch)
+
+    # Reinitialize the game with window visible
+    game.close()
+    game.set_window_visible(True)
+    game.set_mode(vzd.Mode.ASYNC_PLAYER)
     game.init()
-    actions = get_all_possible_action_combinations(game)
-    input_size = (game.get_screen_channels(), game.get_screen_height(), game.get_screen_width())
-    game.close()
 
-    # define agents
-    # agent = agents.RandomAgent(len(actions))
-    agent = agents.PolicyAgent(input_size, len(actions), data_directory_name,
-                                states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name)
+    for _ in range(episodes_to_watch):
+        game.new_episode()
+        while not game.is_episode_finished():
+            state = preprocess_image_data(game.get_state().screen_buffer)
+            best_action_index = agent.get_action(state)
 
-    # create instance and initialize
-    game = get_game()
+            # Instead of make_action(a, frame_repeat) in order to make the animation smooth
+            game.set_action(actions[best_action_index])
+            for _ in range(frame_repeat):
+                game.advance_action()
 
-    #
-    # iteration
-    #
-
-    iterations = 100
-    episodes_per_iteration = 10
-    sleep_time = 1.0 / vzd.DEFAULT_TICRATE
-    iteration_average_loss_values = []
-    iteration_average_total_reward_values = []
-
-    for iteration_index in range(iterations):
-
-        #
-        # interact with the world and gather data
-        #
-
-        print("Iteration", iteration_index+1)
-
-        # gather data
-        total_rewards = []
-        for episode_index in range(episodes_per_iteration):
-            # start new episode
-            episode_directory_name = str(episode_index).zfill(4)
-            episode_directory_path = os.path.join(data_directory_name, episode_directory_name)
-            os.makedirs(episode_directory_path, exist_ok=True)
-
-            game.init()
-            game.set_seed(0)
-            game.new_episode()
-            states = []
-            action_policies = []
-            rewards = []
-            next_states = []
-            total_reward = 0
-            while not game.is_episode_finished():
-                # get current state
-                state = game.get_state()
-
-                # take an action
-                action_policy = agent.get_policy(np.expand_dims(get_state_data(state), axis=0), episode_index+1).clone().detach().numpy()
-                boolean_action_policy = [False] * len(action_policy[0])
-                boolean_action_policy[np.argmax(action_policy)] = True
-                boolean_action_policy = np.array(boolean_action_policy, dtype=np.float32)
-                action = actions[np.argmax(boolean_action_policy)]
-
-                # get next state and action reward
-                next_state = game.get_state()
-                reward = get_reward_data(game.make_action(action))
-                total_reward += reward
-
-                # record data
-                states.append(get_state_data(state))
-                action_policies.append(boolean_action_policy)
-                rewards.append(reward)
-                next_states.append(get_state_data(next_state))
-
-            # save episode data
-            states = np.stack(states)
-            action_policies = np.stack(action_policies)
-            rewards = np.stack(rewards)
-            next_states = np.stack(next_states)
-            np.save(os.path.join(episode_directory_path, "states"), states)
-            np.save(os.path.join(episode_directory_path, "action_policies"), action_policies)
-            np.save(os.path.join(episode_directory_path, "rewards"), rewards)
-            np.save(os.path.join(episode_directory_path, "next_states"), next_states)
-
-            # episode results
-            total_rewards.append(total_reward)
-
-        #
-        # update model
-        #
-
-        iteration_average_loss = agent.update()
-        iteration_average_total_reward = np.mean(total_rewards)
-        iteration_average_loss_values.append(iteration_average_loss)
-        iteration_average_total_reward_values.append(iteration_average_total_reward)
-        print("iteration_average_loss", iteration_average_loss, "iteration_average_total_reward", iteration_average_total_reward)
-
-        # clean directory
-        for episode_file_name in os.listdir(data_directory_name):
-            episode_file_path = os.path.join(data_directory_name, episode_file_name)
-            shutil.rmtree(episode_file_path)
-
-    # cleanup
-    game.close()
-
-    # display information
-    plt.figure()
-    plt.plot(iteration_average_loss_values)
-    plt.savefig(os.path.join(log_directory_name, "iteration_average_loss_values.pdf"))
-    plt.figure()
-    plt.plot(iteration_average_total_reward_values)
-    plt.savefig(os.path.join(log_directory_name, "iteration_average_total_reward_values.pdf"))
-
-if __name__ == "__main__":
-    main()
+        # Sleep between episodes
+        sleep(1.0)
+        score = game.get_total_reward()
+        print("Total score: ", score)

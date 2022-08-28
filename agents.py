@@ -117,7 +117,8 @@ class DQNAgent:
             state = np.expand_dims(state, axis=0)
             state = torch.from_numpy(state).float().to(self.device)
             action = torch.argmax(self.q_net(state)).item()
-            return action
+
+        return action
 
     def update_target_net(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
