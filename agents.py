@@ -1,7 +1,12 @@
-from random import choice
 import torch
-import os
 import numpy as np
+
+import torch.nn as nn
+import torch.optim as optim
+import random
+from collections import deque
+
+model_savefile = "./model-doom.pth"
 
 class RandomAgent(object):
     def __init__(self, number_of_actions):
@@ -20,117 +25,143 @@ class RandomAgent(object):
 
         return loss.item()
 
-class PolicyAgent(object):
-    class PolicyFunction(torch.nn.Module):
-        def __init__(self, input_size, number_of_actions) -> None:
+class DQNAgent:
+    class DuelQNet(nn.Module):
+        """
+        This is Duel DQN architecture.
+        see https://arxiv.org/abs/1511.06581 for more information.
+        """
+
+        def __init__(self, available_actions_count):
             super().__init__()
+            self.conv1 = nn.Sequential(
+                nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+                nn.BatchNorm2d(8),
+                nn.ReLU()
+            )
 
-            # neural network layers
-            self.convolution_1 = torch.nn.Sequential(torch.nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                                                    torch.nn.BatchNorm2d(8),
-                                                    torch.nn.ReLU())
-            self.convolution_2 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                                                    torch.nn.BatchNorm2d(8),
-                                                    torch.nn.ReLU())
-            self.convolution_3 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                                                    torch.nn.BatchNorm2d(8),
-                                                    torch.nn.ReLU())
-            self.convolution_4 = torch.nn.Sequential(torch.nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                                                    torch.nn.BatchNorm2d(16),
-                                                    torch.nn.ReLU())
-            self.linear_1 = torch.nn.Sequential(torch.nn.Linear(192, 64),
-                                                torch.nn.ReLU())
-            self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, number_of_actions),
-                                                torch.nn.Softmax(dim=-1))
+            self.conv2 = nn.Sequential(
+                nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+                nn.BatchNorm2d(8),
+                nn.ReLU()
+            )
 
-        def forward(self, state):
-            # calculate action probabilities
-            state = self.convolution_1(state)
-            state = self.convolution_2(state)
-            state = self.convolution_3(state)
-            state = self.convolution_4(state)
-            state = state.reshape((state.shape[0], -1))
-            state = self.linear_1(state)
-            policy = self.linear_2(state)
+            self.conv3 = nn.Sequential(
+                nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+                nn.BatchNorm2d(8),
+                nn.ReLU()
+            )
 
-            return policy
+            self.conv4 = nn.Sequential(
+                nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+                nn.BatchNorm2d(16),
+                nn.ReLU()
+            )
 
-    def __init__(self, input_size, number_of_actions, data_directory_name,
-                states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
-                alpha=0.001, epsilon=0.5, epsilon_decay=0.99, gamma=1):
-        super().__init__()
+            self.state_fc = nn.Sequential(
+                nn.Linear(96, 64),
+                nn.ReLU(),
+                nn.Linear(64, 1)
+            )
 
-        # available actions
-        self.number_of_actions = number_of_actions
+            self.advantage_fc = nn.Sequential(
+                nn.Linear(96, 64),
+                nn.ReLU(),
+                nn.Linear(64, available_actions_count)
+            )
 
-        # data location
-        self.data_directory_name = data_directory_name
-        self.states_file_name = states_file_name
-        self.action_policies_file_name = action_policies_file_name
-        self.rewards_file_name = rewards_file_name
-        self.next_states_file_name = next_states_file_name
+        def forward(self, x):
+            x = self.conv1(x)
+            x = self.conv2(x)
+            x = self.conv3(x)
+            x = self.conv4(x)
+            x = x.view(-1, 192)
+            x1 = x[:, :96]  # input for the net to calculate the state value
+            x2 = x[:, 96:]  # relative advantage of actions in the state
+            state_value = self.state_fc(x1).reshape(-1, 1)
+            advantage_values = self.advantage_fc(x2)
+            x = state_value + (advantage_values - advantage_values.mean(dim=1).reshape(-1, 1))
 
-        # parameters
+            return x
+
+    def __init__(self, action_size, memory_size, batch_size, discount_factor, 
+                 lr, load_model, device, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1):
+        self.action_size = action_size
         self.epsilon = epsilon
-        self.episilon_decay = epsilon_decay
-        self.gamma = gamma
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
+        self.batch_size = batch_size
+        self.discount = discount_factor
+        self.lr = lr
+        self.memory = deque(maxlen=memory_size)
+        self.criterion = nn.MSELoss()
+        self.device = device
 
-        # learning
-        self.policy_function = self.PolicyFunction(input_size, number_of_actions)
-        self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
-        self.policy_function.eval()
+        if load_model:
+            print("Loading model from: ", model_savefile)
+            self.q_net = torch.load(model_savefile)
+            self.target_net = torch.load(model_savefile)
+            self.epsilon = self.epsilon_min
 
-    def get_policy(self, state, episode_number):
-        # convert image data to normalized tensor
-        data = torch.tensor(state, dtype=torch.float32)
+        else:
+            print("Initializing new model")
+            self.q_net = self.DuelQNet(action_size).to(self.device)
+            self.target_net = self.DuelQNet(action_size).to(self.device)
 
-        # get optimal action based on current policy
-        policy = self.policy_function(data)
+        self.opt = optim.SGD(self.q_net.parameters(), lr=self.lr)
 
-        # use epsilon-greedy policy
-        if(torch.rand((1,1)).item() < (self.epsilon * (self.episilon_decay**episode_number))):
-            # get a random policy
-            policy = torch.rand((1, self.number_of_actions))
+    def get_action(self, state):
+        if np.random.uniform() < self.epsilon:
+            return random.choice(range(self.action_size))
+        else:
+            state = np.expand_dims(state, axis=0)
+            state = torch.from_numpy(state).float().to(self.device)
+            action = torch.argmax(self.q_net(state)).item()
+            return action
 
-        return policy
+    def update_target_net(self):
+        self.target_net.load_state_dict(self.q_net.state_dict())
 
-    def update(self):
-        # initialize
-        self.policy_function.train()
-        loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
-        episode_count = len(os.listdir(self.data_directory_name))
+    def append_memory(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
 
-        # read episode data
-        episode_directory_names = os.listdir(self.data_directory_name)
-        episode_directory_names.sort()
-        for episode_directory_name in episode_directory_names:
-            # load episide data
-            episode_directory_path = os.path.join(self.data_directory_name, episode_directory_name)
-            states = torch.tensor(np.load(os.path.join(episode_directory_path, self.states_file_name)),
-                                    dtype=torch.float32, requires_grad=True)
-            observed_action_policies = torch.tensor(np.load(os.path.join(episode_directory_path, self.action_policies_file_name)),
-                                    dtype=torch.float32, requires_grad=True)
-            rewards = torch.tensor(np.load(os.path.join(episode_directory_path, self.rewards_file_name)),
-                                    dtype=torch.float32, requires_grad=True)
-            reward_discounts = torch.tensor(np.array([self.gamma**index for index in range(rewards.shape[0])]),
-                                            dtype=torch.float32, requires_grad=True)
-            total_discounted_reward = torch.sum(rewards * reward_discounts)
+    def train(self):
+        batch = random.sample(self.memory, self.batch_size)
+        batch = np.array(batch, dtype=object)
 
-            # calculate loss
-            # multiply by -1 for gradient descent
-            action_policies = self.policy_function(states)
-            log_policy_values = torch.log(action_policies) * observed_action_policies
-            total_log_policy = torch.sum(log_policy_values)
-            episode_loss = total_log_policy * total_discounted_reward
-            loss = loss + episode_loss
+        states = np.stack(batch[:, 0]).astype(float)
+        actions = batch[:, 1].astype(int)
+        rewards = batch[:, 2].astype(float)
+        next_states = np.stack(batch[:, 3]).astype(float)
+        dones = batch[:, 4].astype(bool)
+        not_dones = ~dones
 
-        # calculate mean loss
-        loss = loss / episode_count
+        row_idx = np.arange(self.batch_size)  # used for indexing the batch
 
-        # update model
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.policy_function.eval()
+        # value of the next states with double q learning
+        # see https://arxiv.org/abs/1509.06461 for more information on double q learning
+        with torch.no_grad():
+            next_states = torch.from_numpy(next_states).float().to(self.device)
+            idx = row_idx, np.argmax(self.q_net(next_states).cpu().data.numpy(), 1)
+            next_state_values = self.target_net(next_states).cpu().data.numpy()[idx]
+            next_state_values = next_state_values[not_dones]
 
-        return loss.item()
+        # this defines y = r + discount * max_a q(s', a)
+        q_targets = rewards.copy()
+        q_targets[not_dones] += self.discount * next_state_values
+        q_targets = torch.from_numpy(q_targets).float().to(self.device)
+
+        # this selects only the q values of the actions taken
+        idx = row_idx, actions
+        states = torch.from_numpy(states).float().to(self.device)
+        action_values = self.q_net(states)[idx].float().to(self.device)
+
+        self.opt.zero_grad()
+        td_error = self.criterion(q_targets, action_values)
+        td_error.backward()
+        self.opt.step()
+
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+        else:
+            self.epsilon = self.epsilon_min
