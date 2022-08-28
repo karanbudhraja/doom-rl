@@ -96,7 +96,7 @@ class PolicyAgent(object):
                 reward = current_data["reward"]
 
                 # calculate loss contribution
-                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True) / 255
+                input_data = torch.tensor(state, dtype=torch.float32, requires_grad=True)
                 action_probability = self.policy_function(input_data)[self.action_to_index[str(action)]]
                 log_action_probability = torch.log(action_probability)
                 discounted_reward = torch.tensor((self.gamma**index) * reward, requires_grad=True)
@@ -118,7 +118,7 @@ class PolicyAgent(object):
 
     def get_action(self, state):
         # convert image data to normalized tensor
-        data = torch.tensor(state) / 255
+        data = torch.tensor(state)
 
         # get optimal action based on current policy
         policy = self.policy_function(data)
