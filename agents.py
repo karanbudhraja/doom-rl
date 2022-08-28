@@ -55,16 +55,13 @@ class PolicyAgent(object):
 
             return policy
 
-    def __init__(self, actions, input_size, data_directory_name,
+    def __init__(self, input_size, number_of_actions, data_directory_name,
                 states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
                 alpha=0.001, epsilon=0.5, epsilon_decay=0.99, gamma=1):
         super().__init__()
 
         # available actions
-        self.actions = actions
-        self.action_to_index = dict()
-        for (index, action) in enumerate(actions):
-            self.action_to_index[str(action)] = index
+        self.number_of_actions = number_of_actions
 
         # data location
         self.data_directory_name = data_directory_name
@@ -79,7 +76,7 @@ class PolicyAgent(object):
         self.gamma = gamma
 
         # learning
-        self.policy_function = self.PolicyFunction(actions, input_size)
+        self.policy_function = self.PolicyFunction(input_size, number_of_actions)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
         self.policy_function.eval()
 
@@ -93,7 +90,7 @@ class PolicyAgent(object):
         # use epsilon-greedy policy
         if(torch.rand((1,1)).item() < (self.epsilon * (self.episilon_decay**episode_number))):
             # get a random policy
-            policy = torch.rand((1,self.number_of_actions))
+            policy = torch.rand((1, self.number_of_actions))
 
         return policy
 
@@ -104,7 +101,9 @@ class PolicyAgent(object):
         episode_count = len(os.listdir(self.data_directory_name))
 
         # read episode data
-        for episode_directory_name in os.listdir(self.data_directory_name):
+        episode_directory_names = os.listdir(self.data_directory_name)
+        episode_directory_names.sort()
+        for episode_directory_name in episode_directory_names:
             # load episide data
             episode_directory_path = os.path.join(self.data_directory_name, episode_directory_name)
             states = torch.tensor(np.load(os.path.join(episode_directory_path, self.states_file_name)),

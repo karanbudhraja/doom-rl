@@ -85,8 +85,8 @@ def main():
     # iteration
     #
 
-    iterations = 100
-    episodes_per_iteration = 10
+    iterations = 1
+    episodes_per_iteration = 3
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     iteration_average_loss_values = []
     iteration_average_total_reward_values = []
@@ -100,12 +100,12 @@ def main():
         print("Iteration", iteration_index+1)
 
         # gather data
+        total_rewards = []
         for episode_index in range(episodes_per_iteration):
             # start new episode
             episode_directory_name = str(episode_index).zfill(4)
             episode_directory_path = os.path.join(data_directory_name, episode_directory_name)
             os.makedirs(episode_directory_path, exist_ok=True)
-            total_rewards = []
 
             game.init()
             game.new_episode()
@@ -113,6 +113,7 @@ def main():
             action_policies = []
             rewards = []
             next_states = []
+            total_reward = 0
             while not game.is_episode_finished():
                 # get current state
                 state = game.get_state()
@@ -127,6 +128,7 @@ def main():
                 # get next state and action reward
                 next_state = game.get_state()
                 reward = get_reward_data(game.make_action(action))
+                total_reward += reward
 
                 # record data
                 states.append(get_state_data(state))
@@ -145,7 +147,6 @@ def main():
             np.save(os.path.join(episode_directory_path, "next_states"), next_states)
 
             # episode results
-            total_reward = game.get_total_reward()
             total_rewards.append(total_reward)
 
         #
