@@ -104,8 +104,11 @@ def main():
                 reward = game.make_action(action)
                 total_reward = game.get_total_reward()
 
+                print(state.screen_buffer)
+                exit(0)
+
                 # record data
-                current_data = {"state": state.screen_buffer, "action": action, "reward": reward, "next_state": next_state.screen_buffer}
+                current_data = {"state": state.screen_buffer / 255, "action": action, "reward": reward, "next_state": next_state.screen_buffer / 255}
                 episode_data.append(current_data)
 
                 # sleep
