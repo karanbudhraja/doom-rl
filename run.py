@@ -105,7 +105,7 @@ def main():
                 total_reward = game.get_total_reward()
 
                 # record data
-                current_data = {"state": state.screen_buffer / 255, "action": action, "reward": reward, "next_state": next_state.screen_buffer / 255}
+                current_data = {"state": state.screen_buffer, "action": action, "reward": reward, "next_state": next_state.screen_buffer}
                 episode_data.append(current_data)
 
                 # sleep
