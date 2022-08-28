@@ -1,46 +1,74 @@
 from random import choice
 import torch
 import os
-import pickle
+import numpy as np
 
 class RandomAgent(object):
-    def __init__(self, actions):
+    def __init__(self, number_of_actions):
         super().__init__()
-        self.actions = actions
+        self.number_of_actions = number_of_actions
 
-    def get_action(self):
-        # select action at random
-        action = choice(self.actions)
+    def get_policy(self, state, episode_number):
+        # get a random policy
+        policy = torch.rand((1,self.number_of_actions))
 
-        return action
+        return policy
+
+    def update(self):
+        # generate random number
+        loss = torch.rand((1,1))
+
+        return loss.item()
 
 class PolicyAgent(object):
     class PolicyFunction(torch.nn.Module):
-        def __init__(self, actions, input_size) -> None:
+        def __init__(self, input_size, number_of_actions) -> None:
             super().__init__()
-            self.actions = actions
 
             # neural network layers
             self.convolution_1 = torch.nn.Sequential(torch.nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+                                                    torch.nn.BatchNorm2d(8),
                                                     torch.nn.ReLU())
             self.convolution_2 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+                                                    torch.nn.BatchNorm2d(8),
                                                     torch.nn.ReLU())
             self.convolution_3 = torch.nn.Sequential(torch.nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+                                                    torch.nn.BatchNorm2d(8),
                                                     torch.nn.ReLU())
             self.convolution_4 = torch.nn.Sequential(torch.nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+                                                    torch.nn.BatchNorm2d(16),
                                                     torch.nn.ReLU())
-            self.maxpool_1 = torch.nn.MaxPool1d(2)
-            self.linear_1 = torch.nn.Sequential(torch.nn.Linear(96, 64),
-                                                torch.nn.ReLU())
-            self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, len(actions)),
-                                                torch.nn.Softmax(dim=-1))
+            # self.maxpool_1 = torch.nn.MaxPool1d(2)
+            # self.linear_1 = torch.nn.Sequential(torch.nn.Linear(96, 64),
+            #                                     torch.nn.ReLU())
+            # self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, number_of_actions),
+            #                                     torch.nn.Softmax(dim=-1))
+
+
+            # neural network layers
+            # self.convolution_1 = torch.nn.Conv2d(input_size[0], 8, 11, 4)
+            # self.pooling_1 = torch.nn.MaxPool2d(3, 2)
+            # self.convolution_2 = torch.nn.Conv2d(input_size[0], input_size[0], 5, 1, 2)
+            # self.pooling_2 = torch.nn.MaxPool2d(3, 2)
+            # self.convolution_3 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
+            # self.convolution_4 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
+            # self.convolution_5 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
+            # self.pooling_3 = torch.nn.MaxPool2d(3, 2)
+            # self.linear_1 = torch.nn.Linear(144, 144)
+            # self.linear_2 = torch.nn.Linear(144, len(actions))
 
         def forward(self, state):
             # calculate action probabilities
+            print(state.shape)
             state = self.convolution_1(state)
+            print(state.shape)
             state = self.convolution_2(state)
             state = self.convolution_3(state)
             state = self.convolution_4(state)
+            print(state.shape)
+
+            exit(0)
+
             state = torch.permute(state, (0, 2, 1))
             state = self.maxpool_1(state)
             state = torch.flatten(state)
@@ -49,7 +77,9 @@ class PolicyAgent(object):
 
             return policy
 
-    def __init__(self, actions, input_size, data_directory_name, alpha=0.001, epsilon=0.0, gamma=0.99):
+    def __init__(self, actions, input_size, data_directory_name,
+                states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
+                alpha=0.001, epsilon=0.0, gamma=0.99):
         super().__init__()
 
         # available actions
@@ -60,6 +90,10 @@ class PolicyAgent(object):
 
         # data location
         self.data_directory_name = data_directory_name
+        self.states_file_name = states_file_name
+        self.action_policies_file_name = action_policies_file_name
+        self.rewards_file_name = rewards_file_name
+        self.next_states_file_name = next_states_file_name
 
         # parameters
         self.epsilon = epsilon
@@ -69,15 +103,50 @@ class PolicyAgent(object):
         self.policy_function = self.PolicyFunction(actions, input_size)
         self.optimizer = torch.optim.Adam(self.policy_function.parameters(), lr=alpha)
 
+    def get_policy(self, state, episode_number):
+        # convert image data to normalized tensor
+        data = torch.tensor(state, dtype=torch.float32)
+
+        # get optimal action based on current policy
+        policy = self.policy_function(data)
+
+        # use epsilon-greedy policy
+        if(torch.rand((1,1)).item() < self.epsilon):
+            # get a random policy
+            policy = torch.rand((1,self.number_of_actions))
+
+            # epsilon decay
+            self.epsilon = self.epsilon
+
+        return policy
+
     def update(self):
         # initialize
         loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
         episode_count = len(os.listdir(self.data_directory_name))
 
         # read episode data
-        for episode_file_name in os.listdir(self.data_directory_name):
+        for episode_directory_name in os.listdir(self.data_directory_name):
             # load episide data
-            episode_file_path = os.path.join(self.data_directory_name, episode_file_name)
+            episode_directory_path = os.path.join(self.data_directory_name, episode_directory_name)
+            states = np.load(os.path.join(episode_directory_path, self.states_file_name))
+            action_policies = np.load(os.path.join(episode_directory_path, self.action_policies_file_name))
+            rewards = np.load(os.path.join(episode_directory_path, self.rewards_file_name))
+
+            # calculate loss
+            input_data = torch.tensor(states, dtype=torch.float32, requires_grad=True)
+ 
+
+            x = self.policy_function(input_data)
+
+
+            print(states.shape, x.shape)
+            exit(0)
+            
+            
+            
+            
+            
             with open(episode_file_path, "rb") as episode_data_file: 
                 episode_data = pickle.load(episode_data_file)
 
@@ -109,18 +178,3 @@ class PolicyAgent(object):
         self.optimizer.step()
 
         return loss.item()
-
-    def get_action(self, state, episode_number):
-        # convert image data to normalized tensor
-        data = torch.tensor(state, dtype=torch.float32)
-
-        # get optimal action based on current policy
-        policy = self.policy_function(data)
-        action = self.actions[torch.argmax(policy)]
-
-        # use epsilon-greedy policy
-        if(torch.rand((1,1)).item() < (self.epsilon/episode_number)):
-            # take random action
-            action = choice(self.actions)
-
-        return action

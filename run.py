@@ -9,9 +9,9 @@ import vizdoom as vzd
 import agents
 
 import os
-import pickle
 import matplotlib.pyplot as plt
 import skimage.transform
+import shutil
 
 def get_game():
     # create and configure a game instance
@@ -33,17 +33,6 @@ def get_all_possible_action_combinations(game):
 
     return actions
 
-def get_all_actions(game):
-    # get discrete actions
-    action_space_size = game.get_available_buttons_size()
-    actions = []
-    for actions_subset in itertools.combinations(range(action_space_size), 1):
-        current_action = np.array([False] * action_space_size)
-        current_action[list(actions_subset)] = True
-        actions.append(current_action)
-
-    return actions
-
 def get_state_data(state):
     # extract state data from state object
     state_data = state.screen_buffer.astype(np.float32)
@@ -62,7 +51,11 @@ def main():
     data_directory_name = "data_buffer"
     os.makedirs(log_directory_name, exist_ok=True)
     os.makedirs(data_directory_name, exist_ok=True)
-    data_file_extension = ".data"
+    data_file_extension = ".npy"
+    states_file_name = "states" + data_file_extension
+    action_policies_file_name = "action_policies" + data_file_extension
+    rewards_file_name = "rewards" + data_file_extension
+    next_states_file_name = "next_states" + data_file_extension
 
     # create instance and initialize
     # collect action choices
@@ -73,8 +66,9 @@ def main():
     game.close()
 
     # define agents
-    random_agent = agents.RandomAgent(actions)
-    policy_agent = agents.PolicyAgent(actions, input_size, data_directory_name)
+    # agent = agents.RandomAgent(len(actions))
+    agent = agents.PolicyAgent(input_size, len(actions), data_directory_name,
+                                states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name)
 
     # create instance and initialize
     game = get_game()
@@ -83,7 +77,7 @@ def main():
     # iteration
     #
 
-    iterations = 100
+    iterations = 2
     episodes_per_iteration = 5
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     iteration_average_loss_values = []
@@ -100,35 +94,44 @@ def main():
         # gather data
         for episode_index in range(episodes_per_iteration):
             # start new episode
-            episode_file_name = str(episode_index).zfill(4) + data_file_extension
-            episode_file_path = os.path.join(data_directory_name, episode_file_name)
-            episode_data = []
+            episode_directory_name = str(episode_index).zfill(4)
+            episode_directory_path = os.path.join(data_directory_name, episode_directory_name)
+            os.makedirs(episode_directory_path, exist_ok=True)
             total_rewards = []
 
             game.init()
             game.new_episode()
+            states = []
+            action_policies = []
+            rewards = []
+            next_states = []
             while not game.is_episode_finished():
                 # get current state
                 state = game.get_state()
 
                 # take an action
-                # action = random_agent.get_action()
-                action = policy_agent.get_action(get_state_data(state), episode_index+1)
-                next_state = game.get_state()
+                policy = agent.get_policy(np.expand_dims(get_state_data(state), axis=0), episode_index+1).clone().detach().numpy()
+                action = actions[np.argmax(policy)]
                 
-                # get reward
+                # get next state and action reward
+                next_state = game.get_state()
                 reward = game.make_action(action)
 
                 # record data
-                current_data = {"state": get_state_data(state), "action": action, "reward": reward, "next_state": get_state_data(next_state)}
-                episode_data.append(current_data)
-
-                # sleep
-                # sleep(sleep_time)
+                states.append(get_state_data(state))
+                action_policies.append(policy)
+                rewards.append(reward)
+                next_states.append(get_state_data(next_state))
 
             # save episode data
-            with open(episode_file_path, "wb") as episode_data_file:
-                pickle.dump(episode_data, episode_data_file)
+            states = np.stack(states)
+            action_policies = np.stack(action_policies)
+            rewards = np.stack(rewards)
+            next_states = np.stack(next_states)
+            np.save(os.path.join(episode_directory_path, "states"), states)
+            np.save(os.path.join(episode_directory_path, "action_policies"), action_policies)
+            np.save(os.path.join(episode_directory_path, "rewards"), rewards)
+            np.save(os.path.join(episode_directory_path, "next_states"), next_states)
 
             # episode results
             total_reward = game.get_total_reward()
@@ -138,7 +141,7 @@ def main():
         # update model
         #
 
-        iteration_average_loss = policy_agent.update()
+        iteration_average_loss = agent.update()
         iteration_average_total_reward = np.mean(total_rewards)
         iteration_average_loss_values.append(iteration_average_loss)
         iteration_average_total_reward_values.append(iteration_average_total_reward)
@@ -146,7 +149,7 @@ def main():
         # clean directory
         for episode_file_name in os.listdir(data_directory_name):
             episode_file_path = os.path.join(data_directory_name, episode_file_name)
-            os.remove(episode_file_path)
+            shutil.rmtree(episode_file_path)
 
     # cleanup
     game.close()
