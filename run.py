@@ -57,7 +57,6 @@ def main():
 
     # create instance and initialize
     game = get_game()
-    game.init()
 
     #
     # iteration
@@ -77,20 +76,16 @@ def main():
 
         print("Iteration", iteration_index+1)
 
-        # clean directory
-        for episode_file_name in os.listdir(data_directory_name):
-            episode_file_path = os.path.join(data_directory_name, episode_file_name)
-            os.remove(episode_file_path)
-
         # gather data
         for episode_index in range(episodes_per_iteration):
             # start new episode
             episode_file_name = str(episode_index).zfill(4) + data_file_extension
             episode_file_path = os.path.join(data_directory_name, episode_file_name)
-            game.new_episode()
             episode_data = []
             total_rewards = []
 
+            game.init()
+            game.new_episode()
             while not game.is_episode_finished():
                 # get current state
                 state = game.get_state()
@@ -126,6 +121,11 @@ def main():
         iteration_average_total_reward = np.mean(total_rewards)
         iteration_average_loss_values.append(iteration_average_loss)
         iteration_average_total_reward_values.append(iteration_average_total_reward)
+
+        # clean directory
+        for episode_file_name in os.listdir(data_directory_name):
+            episode_file_path = os.path.join(data_directory_name, episode_file_name)
+            os.remove(episode_file_path)
 
     # cleanup
     game.close()
