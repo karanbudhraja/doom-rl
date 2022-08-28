@@ -77,8 +77,8 @@ def main():
     # iteration
     #
 
-    iterations = 2
-    episodes_per_iteration = 5
+    iterations = 1
+    episodes_per_iteration = 1
     sleep_time = 1.0 / vzd.DEFAULT_TICRATE
     iteration_average_loss_values = []
     iteration_average_total_reward_values = []
@@ -111,8 +111,12 @@ def main():
 
                 # take an action
                 policy = agent.get_policy(np.expand_dims(get_state_data(state), axis=0), episode_index+1).clone().detach().numpy()
-                action = actions[np.argmax(policy)]
+                # action = actions[np.argmax(policy)]
+                action = actions[0]
                 
+                x = np.expand_dims(get_state_data(state), axis=0)
+                print("x size", x.shape)
+
                 # get next state and action reward
                 next_state = game.get_state()
                 reward = game.make_action(action)

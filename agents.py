@@ -25,9 +25,6 @@ class PolicyAgent(object):
         def __init__(self, input_size, number_of_actions) -> None:
             super().__init__()
 
-            print(input_size)
-            exit(0)
-
             # neural network layers
             self.convolution_1 = torch.nn.Sequential(torch.nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
                                                     torch.nn.BatchNorm2d(8),
@@ -41,44 +38,25 @@ class PolicyAgent(object):
             self.convolution_4 = torch.nn.Sequential(torch.nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
                                                     torch.nn.BatchNorm2d(16),
                                                     torch.nn.ReLU())
-            # self.maxpool_1 = torch.nn.MaxPool1d(2)
-            # self.linear_1 = torch.nn.Sequential(torch.nn.Linear(96, 64),
-            #                                     torch.nn.ReLU())
-            # self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, number_of_actions),
-            #                                     torch.nn.Softmax(dim=-1))
-
-
-            # neural network layers
-            # self.convolution_1 = torch.nn.Conv2d(input_size[0], 8, 11, 4)
-            # self.pooling_1 = torch.nn.MaxPool2d(3, 2)
-            # self.convolution_2 = torch.nn.Conv2d(input_size[0], input_size[0], 5, 1, 2)
-            # self.pooling_2 = torch.nn.MaxPool2d(3, 2)
-            # self.convolution_3 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            # self.convolution_4 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            # self.convolution_5 = torch.nn.Conv2d(input_size[0], input_size[0], 3, 1, 1)
-            # self.pooling_3 = torch.nn.MaxPool2d(3, 2)
-            # self.linear_1 = torch.nn.Linear(144, 144)
-            # self.linear_2 = torch.nn.Linear(144, len(actions))
+            self.linear_1 = torch.nn.Sequential(torch.nn.Linear(192, 64),
+                                                torch.nn.ReLU())
+            self.linear_2 = torch.nn.Sequential(torch.nn.Linear(64, number_of_actions),
+                                                torch.nn.Softmax(dim=0))
 
         def forward(self, state):
             # calculate action probabilities
-            print(state.shape)
             state = self.convolution_1(state)
-            print(state.shape)
             state = self.convolution_2(state)
             state = self.convolution_3(state)
             state = self.convolution_4(state)
-            print(state.shape)
-
-            exit(0)
-
-            state = torch.permute(state, (0, 2, 1))
-            state = self.maxpool_1(state)
-            state = torch.flatten(state)
+            # state = torch.flatten(state)
+            #state = state.reshape()
             state = self.linear_1(state)
-            policy = self.linear_2(state)
+            # policy = self.linear_2(state)
 
-            return policy
+            # return policy
+
+            return state
 
     def __init__(self, actions, input_size, data_directory_name,
                 states_file_name, action_policies_file_name, rewards_file_name, next_states_file_name, 
@@ -139,10 +117,12 @@ class PolicyAgent(object):
             # calculate loss
             input_data = torch.tensor(states, dtype=torch.float32, requires_grad=True)
  
+            print("in update", input_data.shape)
 
             x = self.policy_function(input_data)
 
 
+            print("jere")
             print(states.shape, x.shape)
             exit(0)
             
