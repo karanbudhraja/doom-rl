@@ -115,23 +115,16 @@ class PolicyAgent(object):
                                     dtype=torch.float32, requires_grad=True)
 
             # calculate loss
+            # multiply by -1 for gradient descent
             action_policies = self.policy_function(states) 
             log_policy_values = torch.log(action_policies) * observed_action_policies
             total_log_policy = torch.sum(log_policy_values)
             reward_discounts = torch.tensor(np.array([self.gamma**index for index in range(action_policies.shape[0])]),
                                             dtype=torch.float32, requires_grad=True)
             rewards = rewards * reward_discounts
-
-            print(rewards)
-
-
             total_discounted_reward = torch.sum(rewards)
             episode_loss = -1 * total_log_policy * total_discounted_reward
             loss = loss + episode_loss
-
-            print(total_log_policy, total_discounted_reward, episode_loss)
-
-            exit(0)
             
         # calculate mean loss
         loss = loss / episode_count

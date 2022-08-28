@@ -12,6 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import skimage.transform
 import shutil
+from scipy.special import expit
 
 def get_game():
     # create and configure a game instance
@@ -35,11 +36,18 @@ def get_all_possible_action_combinations(game):
 
 def get_state_data(state):
     # extract state data from state object
+    # transform data
     state_data = state.screen_buffer.astype(np.float32)
     state_data = skimage.transform.resize(state_data, (30, 45))
     state_data = np.expand_dims(state_data, axis=0)
 
     return state_data
+
+def get_reward_data(reward):
+    # transform data
+    reward = expit(reward)
+
+    return reward
 
 def main():
     #
@@ -118,7 +126,7 @@ def main():
 
                 # get next state and action reward
                 next_state = game.get_state()
-                reward = game.make_action(action)
+                reward = get_reward_data(game.make_action(action))
 
                 # record data
                 states.append(get_state_data(state))
@@ -148,6 +156,7 @@ def main():
         iteration_average_total_reward = np.mean(total_rewards)
         iteration_average_loss_values.append(iteration_average_loss)
         iteration_average_total_reward_values.append(iteration_average_total_reward)
+        print("iteration_average_loss", iteration_average_loss, "iteration_average_total_reward", iteration_average_total_reward)
 
         # clean directory
         for episode_file_name in os.listdir(data_directory_name):
