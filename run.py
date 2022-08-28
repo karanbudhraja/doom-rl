@@ -31,6 +31,17 @@ def get_all_possible_action_combinations(game):
 
     return actions
 
+def get_all_actions(game):
+    # get discrete actions
+    action_space_size = game.get_available_buttons_size()
+    actions = []
+    for actions_subset in itertools.combinations(range(action_space_size), 1):
+        current_action = np.array([False] * action_space_size)
+        current_action[list(actions_subset)] = True
+        actions.append(current_action)
+
+    return actions
+
 def main():
     #
     # initialization
@@ -92,12 +103,11 @@ def main():
 
                 # take an action
                 # action = random_agent.get_action()
-                action = policy_agent.get_action(state.screen_buffer)
+                action = policy_agent.get_action(state.screen_buffer, episode_index+1)
                 next_state = game.get_state()
                 
                 # get reward
                 reward = game.make_action(action)
-                total_reward = game.get_total_reward()
 
                 # record data
                 current_data = {"state": state.screen_buffer, "action": action, "reward": reward, "next_state": next_state.screen_buffer}
@@ -111,6 +121,7 @@ def main():
                 pickle.dump(episode_data, episode_data_file)
 
             # episode results
+            total_reward = game.get_total_reward()
             total_rewards.append(total_reward)
 
         #

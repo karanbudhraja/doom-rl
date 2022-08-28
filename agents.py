@@ -55,7 +55,7 @@ class PolicyAgent(object):
 
             return policy
 
-    def __init__(self, actions, input_size, data_directory_name, alpha=0.001, epsilon=0, gamma=0.99):
+    def __init__(self, actions, input_size, data_directory_name, alpha=0.001, epsilon=0.0, gamma=0.99):
         super().__init__()
 
         # available actions
@@ -107,7 +107,7 @@ class PolicyAgent(object):
             loss = loss + (total_log_action_probability * total_discounted_reward)
 
         # calculate mean loss
-        loss = loss / episode_count
+        loss = -1 * loss / episode_count
 
         # update model
         self.optimizer.zero_grad()
@@ -116,7 +116,7 @@ class PolicyAgent(object):
 
         return loss.item()
 
-    def get_action(self, state):
+    def get_action(self, state, episode_number):
         # convert image data to normalized tensor
         data = torch.tensor(state, dtype=torch.float32) / 255
 
@@ -125,7 +125,7 @@ class PolicyAgent(object):
         action = self.actions[torch.argmax(policy)]
 
         # use epsilon-greedy policy
-        if(torch.rand((1,1)).item() < self.epsilon):
+        if(torch.rand((1,1)).item() < (self.epsilon/episode_number)):
             # take random action
             action = choice(self.actions)
 
