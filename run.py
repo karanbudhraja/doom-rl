@@ -108,7 +108,84 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
     game.close()
 
     #
-    # testing
+    # demonstrate
+    #
+
+    # reinitialize the game with window visible
+    game.set_window_visible(True)
+    game.set_mode(vzd.Mode.ASYNC_PLAYER)
+    game.init()
+
+    for _ in range(episodes_to_watch):
+        game.new_episode()
+        while not game.is_episode_finished():
+            state = preprocess_image_data(game.get_state().screen_buffer)
+            best_action_index = agent.get_action(state)
+
+            # Instead of make_action(a, frame_repeat) in order to make the animation smooth
+            game.set_action(actions[best_action_index])
+            for _ in range(frame_repeat):
+                game.advance_action()
+
+        # Sleep between episodes
+        sleep(1.0)
+        score = game.get_total_reward()
+        print("Total score: ", score)
+
+def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, episodes_to_watch=10, save_model=True):
+    #
+    # training
+    #
+    
+    # run training episodes
+    # skip a few frames after each action
+    for epoch in range(num_epochs):
+        game.new_episode()
+        train_scores = []
+        global_step = 0
+        print("\nEpoch #" + str(epoch + 1))
+
+        for _ in trange(steps_per_epoch, leave=False):
+            state = preprocess_image_data(game.get_state().screen_buffer)
+            action = agent.get_action(state)
+            reward = game.make_action(actions[action], frame_repeat)
+            done = game.is_episode_finished()
+
+            if not done:
+                next_state = preprocess_image_data(game.get_state().screen_buffer)
+            else:
+                # padding in case the episode has been finished
+                next_state = np.zeros((1, 30, 45)).astype(np.float32)
+
+            # add to data buffer
+            agent.append_memory(state, action, reward, next_state, done)
+
+            if global_step > agent.batch_size:
+                agent.train()
+
+            if done:
+                train_scores.append(game.get_total_reward())
+                game.new_episode()
+
+            global_step += 1
+
+        agent.update()
+        train_scores = np.array(train_scores)
+
+        # training results
+        print("Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),
+              "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
+
+        # testing results
+        test(game, agent, frame_repeat)
+        if save_model:
+            print("Saving the network weights to:", agent.model_save_file_path)
+            torch.save(agent.q_net, agent.model_save_file_path)
+
+    game.close()
+
+    #
+    # demonstrate
     #
 
     # reinitialize the game with window visible
