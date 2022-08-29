@@ -104,12 +104,18 @@ class PolicyLearningAgent:
             states = np.stack(batch[:, 0]).astype(float)
             actions = batch[:, 1].astype(int)
             rewards = batch[:, 2].astype(float)
+
+            # convert rewards to projected state values
+            # discount based on distance from end
+            _projected_state_values = np.zeros(rewards.shape)
+            for index in np.arange(len(rewards)):
+                rewards_subset = rewards[index:]
+                discounts = self.discount**np.flip(np.arange(len(rewards_subset)))
+                _projected_state_values[index] = np.sum(rewards_subset * discounts)
+
             next_states = np.stack(batch[:, 3]).astype(float)
             dones = batch[:, 4].astype(bool)
             not_dones = ~dones
-
-            # batch indexing
-            row_idx = np.arange(self.batch_size)
 
             # get log probability of action based on policy network
             action_probabilities = self.policy_net(torch.from_numpy(states).float())
@@ -119,12 +125,9 @@ class PolicyLearningAgent:
             log_probability = probability_model.log_prob(masked_action_probabilities)
             log_probability = log_probability * masked_action_probabilities
 
-            # get discounted reward
-            discounts = self.discount**np.flip(np.arange(len(rewards)))
-            discounted_rewards = torch.tensor(rewards * discounts, dtype=torch.float32, requires_grad=True)
-
             # calculate loss
-            episode_loss = -1 * torch.sum(log_probability * discounted_rewards.reshape((-1, 1)))
+            projected_state_values = torch.tensor(_projected_state_values, dtype=torch.float32, requires_grad=True)
+            episode_loss = -1 * torch.sum(log_probability * projected_state_values.reshape((-1, 1)))
             total_loss = total_loss + episode_loss
 
         average_loss = total_loss / self.batch_size
