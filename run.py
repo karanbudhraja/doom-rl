@@ -77,6 +77,7 @@ def run(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=200
             if not done:
                 next_state = preprocess_image_data(game.get_state().screen_buffer)
             else:
+                # padding in case the episode has been finished
                 next_state = np.zeros((1, 30, 45)).astype(np.float32)
 
             # add to data buffer
@@ -153,7 +154,8 @@ if __name__ == '__main__':
         device = torch.device('cuda')
         torch.backends.cudnn.benchmark = True
     # agent = agents.RandomAgent(device, len(actions))
-    agent = agents.DQNAgent(device, len(actions))
+    # agent = agents.DQNAgent(device, len(actions))
+    agent = agents.QNAgent(device, len(actions))
 
     # run training and testing
     run(game, actions, agent)
