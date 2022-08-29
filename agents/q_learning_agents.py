@@ -8,28 +8,6 @@ from collections import deque
 import os
 
 #
-# random agent
-#
-
-class RandomAgent(object):
-    def __init__(self, device, number_of_actions):
-        super().__init__()
-        self.number_of_actions = number_of_actions
-        self.batch_size = np.inf
-
-    def get_action(self, state):
-        # get a random action
-        action = torch.randint(self.number_of_actions, (1,1)).item()
-
-        return action
-
-    def update(self):
-        pass
-
-    def append_memory(self, state, action, reward, next_state, done):
-        pass
-
-#
 # predict q values
 #
 

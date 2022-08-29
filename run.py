@@ -12,7 +12,7 @@ import os
 from time import sleep
 from tqdm import trange
 
-import agents
+from agents import random_agents, q_learning_agents
 
 #
 # functions
@@ -154,9 +154,9 @@ if __name__ == '__main__':
         device = torch.device('cuda')
         torch.backends.cudnn.benchmark = True
  
-    # agent = agents.RandomAgent(device, len(actions))
-    # agent = agents.QLearningAgent(device, len(actions), agents.QNet, torch.nn.HuberLoss())
-    agent = agents.QLearningAgent(device, len(actions), agents.DuelQNet, torch.nn.MSELoss())
+    # agent = random_agents.RandomAgent(device, len(actions))
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.QNet, torch.nn.MSELoss())
+    agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
 
     # run training and testing
     run(game, actions, agent)
