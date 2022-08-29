@@ -160,11 +160,13 @@ class QLearningAgent:
         states = torch.from_numpy(states).float().to(self.device)
         action_values = self.q_net(states)[idx].float().to(self.device)
 
+        # gradient step
         self.opt.zero_grad()
         td_error = self.criterion(q_targets, action_values)
         td_error.backward()
         self.opt.step()
 
+        # reduce exploration
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
         else:

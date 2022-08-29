@@ -6,6 +6,7 @@ import torch.optim as optim
 import random
 from collections import deque
 import os
+from torch.distributions import Bernoulli
 
 #
 # predict actions
@@ -80,7 +81,7 @@ class PolicyLearningAgent:
         else:
             state = np.expand_dims(state, axis=0)
             state = torch.from_numpy(state).float().to(self.device)
-            action = torch.argmax(self.policy_net(state)).item()
+            action = torch.argmax(self.target_net(state)).item()
 
         return action
 
@@ -95,6 +96,7 @@ class PolicyLearningAgent:
         batches = random.sample(self.memory, self.batch_size)
         
         # process each episode in sample of episodes
+        total_loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
         for batch in batches:
             batch = np.array(batch, dtype=object)
             states = np.stack(batch[:, 0]).astype(float)
@@ -107,82 +109,31 @@ class PolicyLearningAgent:
             # batch indexing
             row_idx = np.arange(self.batch_size)
 
-            with torch.no_grad():
-                # get probability of action based on target (old) network
-                # the target network will not be trained here
-                state_policy_values = self.target_net(torch.from_numpy(states).float()).cpu().data.numpy()
-                
+            # get log probability of action based on policy network
+            action_probabilities = self.policy_net(torch.from_numpy(states).float())
+            probability_model = Bernoulli(action_probabilities)            
+            mask = np.repeat(np.array(range(action_probabilities.shape[1])).reshape((1, action_probabilities.shape[1])), action_probabilities.shape[0], axis=0)            
+            masked_action_probabilities = torch.tensor(np.equal(mask, actions.reshape(-1, 1)), dtype=torch.float32, requires_grad=True)
+            log_probability = probability_model.log_prob(masked_action_probabilities)
+            log_probability = log_probability * masked_action_probabilities
 
-                mask = np.repeat(np.array(range(state_policy_values.shape[1])).reshape((1,state_policy_values.shape[1])), state_policy_values.shape[0], axis=0)
-                mask = np.equal(mask, actions.reshape(-1,1))
+            # get discounted reward
+            discounts = self.discount**np.flip(np.arange(len(rewards)))
+            discounted_rewards = torch.tensor(rewards * discounts, dtype=torch.float32, requires_grad=True)
 
-                action_probabilities = state_policy_values * mask
+            # calculate loss
+            episode_loss = -1 * torch.sum(log_probability) * torch.sum(discounted_rewards)
+            total_loss = total_loss + episode_loss
 
+        average_loss = total_loss / self.batch_size
 
-                print(actions, mask, action_probabilities)
+        # gradient step
+        self.opt.zero_grad()
+        average_loss.backward()
+        self.opt.step()
 
-                print(state_policy_values.shape, rewards.shape, actions.shape)                
-                
-                
-                # action_probabilities = state_policy_values[actions]
-
-                # for row in row_idx:
-                #     print(state_policy_values[row, :])
-                #     print(rewards[row])
-                #     print(action_probabilities[row, :])
-
-
-
-                print("here")
-                exit(0)
-
-
-
-
-
-
-        # value of the next states with double q learning
-        # see https://arxiv.org/abs/1509.06461 for more information on double q learning
-        with torch.no_grad():
-            # get probability of action based on target (old) network
-            # the target network will not be trained here
-            state_policy_values = self.target_net(torch.from_numpy(states).float()).cpu().data.numpy()
-
-
-
-            print(state_policy_values.shape)
-            print(actions.shape)
-
-            action_probabilities = state_policy_values[actions]
-            print(action_probabilities.shape)
-
-
-
-            exit(0)
-
-            pass
-
-            # next_states = torch.from_numpy(next_states).float().to(self.device)
-            # idx = row_idx, np.argmax(self.policy_net(next_states).cpu().data.numpy(), 1)
-            # next_state_values = self.target_net(next_states).cpu().data.numpy()[idx]
-            # next_state_values = next_state_values[not_dones]
-
-        # # this defines y = r + discount * max_a q(s', a)
-        # q_targets = rewards.copy()
-        # q_targets[not_dones] += self.discount * next_state_values
-        # q_targets = torch.from_numpy(q_targets).float().to(self.device)
-
-        # # this selects only the q values of the actions taken
-        # idx = row_idx, actions
-        # states = torch.from_numpy(states).float().to(self.device)
-        # action_values = self.policy_net(states)[idx].float().to(self.device)
-
-        # self.opt.zero_grad()
-        # td_error = self.criterion(q_targets, action_values)
-        # td_error.backward()
-        # self.opt.step()
-
-        # if self.epsilon > self.epsilon_min:
-        #     self.epsilon *= self.epsilon_decay
-        # else:
-        #     self.epsilon = self.epsilon_min
+        # reduce exploration
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+        else:
+            self.epsilon = self.epsilon_min
