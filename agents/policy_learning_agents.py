@@ -8,10 +8,10 @@ from collections import deque
 import os
 
 #
-# predict q values
+# predict actions
 #
 
-class QNet(nn.Module):
+class PolicyNet(nn.Module):
     # deep q learning architecture
     def __init__(self, available_actions_count):
         super().__init__()
@@ -27,43 +27,9 @@ class QNet(nn.Module):
         self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
                                             nn.BatchNorm2d(16),
                                             nn.ReLU())
-        self.linear_q = nn.Sequential(nn.Linear(192, 64),
-                                    nn.ReLU(),
-                                    nn.Linear(64, available_actions_count))
-
-    def forward(self, state):
-        state = self.convolution_1(state)
-        state = self.convolution_2(state)
-        state = self.convolution_3(state)
-        state = self.convolution_4(state)
-        state = state.view(-1, 192)
-        q_value = self.linear_q(state)
-
-        return q_value
-
-class DuelQNet(nn.Module):
-    # duel dqn architecture
-    # see https://arxiv.org/abs/1511.06581 for more information
-    def __init__(self, available_actions_count):
-        super().__init__()
-        self.convolution_1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                                            nn.BatchNorm2d(8),
-                                            nn.ReLU())
-        self.convolution_2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                                            nn.BatchNorm2d(8),
-                                            nn.ReLU())
-        self.convolution_3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                                            nn.BatchNorm2d(8),
-                                            nn.ReLU())
-        self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                                            nn.BatchNorm2d(16),
-                                            nn.ReLU())
-        self.linear_state_value = nn.Sequential(nn.Linear(96, 64),
+        self.linear_policy = nn.Sequential(nn.Linear(192, 64),
                                         nn.ReLU(),
-                                        nn.Linear(64, 1))
-        self.linear_advantage = nn.Sequential(nn.Linear(96, 64),
-                                            nn.ReLU(),
-                                            nn.Linear(64, available_actions_count))
+                                        nn.Softmax(64, available_actions_count))
 
     def forward(self, state):
         state = self.convolution_1(state)
@@ -71,20 +37,12 @@ class DuelQNet(nn.Module):
         state = self.convolution_3(state)
         state = self.convolution_4(state)
         state = state.view(-1, 192)
+        policy = self.linear_policy(state)
 
-        # subset 1: input for the net to calculate the state value
-        # subset 2: relative advantage of actions in the state
-        state_subset_1 = state[:, :96]
-        state_subset_2 = state[:, 96:]
+        return policy
 
-        state_value = self.linear_state_value(state_subset_1).reshape(-1, 1)
-        advantage_values = self.linear_advantage(state_subset_2)
-        q_value = state_value + (advantage_values - advantage_values.mean(dim=1).reshape(-1, 1))
-
-        return q_value
-
-class QLearningAgent:
-    def __init__(self, device, action_size, q_network, loss_criterion, memory_size=10000, batch_size=64, 
+class PolicyLearningAgent:
+    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=10000, batch_size=64, 
                  lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
@@ -101,16 +59,16 @@ class QLearningAgent:
 
         if load_model:
             print("Loading model from: ", self.model_save_file_path)
-            self.q_net = torch.load(self.model_save_file_path)
+            self.policy_net = torch.load(self.model_save_file_path)
             self.target_net = torch.load(self.model_save_file_path)
             self.epsilon = self.epsilon_min
 
         else:
             print("Initializing new model")
-            self.q_net = q_network(action_size).to(self.device)
-            self.target_net = q_network(action_size).to(self.device)
+            self.policy_net = policy_network(action_size).to(self.device)
+            self.target_net = policy_network(action_size).to(self.device)
 
-        self.opt = optim.SGD(self.q_net.parameters(), lr=lr)
+        self.opt = optim.SGD(self.policy_net.parameters(), lr=lr)
 
     def get_action(self, state):
         if np.random.uniform() < self.epsilon:
@@ -118,12 +76,12 @@ class QLearningAgent:
         else:
             state = np.expand_dims(state, axis=0)
             state = torch.from_numpy(state).float().to(self.device)
-            action = torch.argmax(self.q_net(state)).item()
+            action = torch.argmax(self.policy_net(state)).item()
 
         return action
 
     def update(self):
-        self.target_net.load_state_dict(self.q_net.state_dict())
+        self.target_net.load_state_dict(self.policy_net.state_dict())
 
     def append_memory(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -145,7 +103,7 @@ class QLearningAgent:
         # see https://arxiv.org/abs/1509.06461 for more information on double q learning
         with torch.no_grad():
             next_states = torch.from_numpy(next_states).float().to(self.device)
-            idx = row_idx, np.argmax(self.q_net(next_states).cpu().data.numpy(), 1)
+            idx = row_idx, np.argmax(self.policy_net(next_states).cpu().data.numpy(), 1)
             next_state_values = self.target_net(next_states).cpu().data.numpy()[idx]
             next_state_values = next_state_values[not_dones]
 
@@ -157,7 +115,7 @@ class QLearningAgent:
         # this selects only the q values of the actions taken
         idx = row_idx, actions
         states = torch.from_numpy(states).float().to(self.device)
-        action_values = self.q_net(states)[idx].float().to(self.device)
+        action_values = self.policy_net(states)[idx].float().to(self.device)
 
         self.opt.zero_grad()
         td_error = self.criterion(q_targets, action_values)
