@@ -12,7 +12,7 @@ import os
 from time import sleep
 from tqdm import trange
 
-from agents import random_agents, q_learning_agents
+from agents import random_agents, q_learning_agents, policy_learning_agents
 
 #
 # functions
@@ -55,7 +55,7 @@ def test(game, agent, frame_repeat, test_episodes_per_epoch=100):
     test_scores = np.array(test_scores)
     print("Test results: mean: %.1f +/- %.1f," % (test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(), "max: %.1f" % test_scores.max())
 
-def run(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, episodes_to_watch=10, save_model=True):
+def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, episodes_to_watch=10, save_model=True):
     #
     # training
     #
@@ -112,7 +112,6 @@ def run(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=200
     #
 
     # reinitialize the game with window visible
-    game.close()
     game.set_window_visible(True)
     game.set_mode(vzd.Mode.ASYNC_PLAYER)
     game.init()
@@ -149,6 +148,7 @@ if __name__ == '__main__':
 
     # initialize agent
     # use gpu if available
+    # run training and testing
     device = torch.device('cpu')
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -157,6 +157,7 @@ if __name__ == '__main__':
     # agent = random_agents.RandomAgent(device, len(actions))
     # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.QNet, torch.nn.MSELoss())
     agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
+    run_random_sampling(game, actions, agent)
 
-    # run training and testing
-    run(game, actions, agent)
+    # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+    # run_episodic_sampling(game, actions, agent)

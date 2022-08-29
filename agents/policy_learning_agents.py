@@ -29,16 +29,18 @@ class PolicyNet(nn.Module):
                                             nn.ReLU())
         self.linear_policy = nn.Sequential(nn.Linear(192, 64),
                                         nn.ReLU(),
-                                        nn.Softmax(64, available_actions_count))
+                                        nn.Linear(64, available_actions_count),
+                                        nn.Softmax())
 
     def forward(self, state):
+        print("in here")
+
         state = self.convolution_1(state)
         state = self.convolution_2(state)
         state = self.convolution_3(state)
         state = self.convolution_4(state)
         state = state.view(-1, 192)
         policy = self.linear_policy(state)
-
 
         return policy
 
@@ -103,27 +105,49 @@ class PolicyLearningAgent:
         # value of the next states with double q learning
         # see https://arxiv.org/abs/1509.06461 for more information on double q learning
         with torch.no_grad():
-            next_states = torch.from_numpy(next_states).float().to(self.device)
-            idx = row_idx, np.argmax(self.policy_net(next_states).cpu().data.numpy(), 1)
-            next_state_values = self.target_net(next_states).cpu().data.numpy()[idx]
-            next_state_values = next_state_values[not_dones]
+            # get probability of action based on target (old) network
+            # the target network will not be trained here
+            state_policy_values = self.target_net(torch.from_numpy(states).float()).cpu().data.numpy()
 
-        # this defines y = r + discount * max_a q(s', a)
-        q_targets = rewards.copy()
-        q_targets[not_dones] += self.discount * next_state_values
-        q_targets = torch.from_numpy(q_targets).float().to(self.device)
 
-        # this selects only the q values of the actions taken
-        idx = row_idx, actions
-        states = torch.from_numpy(states).float().to(self.device)
-        action_values = self.policy_net(states)[idx].float().to(self.device)
 
-        self.opt.zero_grad()
-        td_error = self.criterion(q_targets, action_values)
-        td_error.backward()
-        self.opt.step()
+            print(state_policy_values.shape)
+            print(actions.shape)
 
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-        else:
-            self.epsilon = self.epsilon_min
+            action_probabilities = state_policy_values[actions]
+            print(action_probabilities.shape)
+
+            for row in row_idx:
+                print(state_policy_values[row, :])
+                print(rewards[row])
+                print(action_probabilities[row, :])
+
+
+            exit(0)
+
+            pass
+
+            # next_states = torch.from_numpy(next_states).float().to(self.device)
+            # idx = row_idx, np.argmax(self.policy_net(next_states).cpu().data.numpy(), 1)
+            # next_state_values = self.target_net(next_states).cpu().data.numpy()[idx]
+            # next_state_values = next_state_values[not_dones]
+
+        # # this defines y = r + discount * max_a q(s', a)
+        # q_targets = rewards.copy()
+        # q_targets[not_dones] += self.discount * next_state_values
+        # q_targets = torch.from_numpy(q_targets).float().to(self.device)
+
+        # # this selects only the q values of the actions taken
+        # idx = row_idx, actions
+        # states = torch.from_numpy(states).float().to(self.device)
+        # action_values = self.policy_net(states)[idx].float().to(self.device)
+
+        # self.opt.zero_grad()
+        # td_error = self.criterion(q_targets, action_values)
+        # td_error.backward()
+        # self.opt.step()
+
+        # if self.epsilon > self.epsilon_min:
+        #     self.epsilon *= self.epsilon_decay
+        # else:
+        #     self.epsilon = self.epsilon_min
