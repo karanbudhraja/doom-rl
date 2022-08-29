@@ -16,20 +16,20 @@ class QNet(nn.Module):
     def __init__(self, available_actions_count):
         super().__init__()
         self.convolution_1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                                    nn.BatchNorm2d(16),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(16),
+                                            nn.ReLU())
         self.q_fc = nn.Sequential(nn.Linear(192, 64),
-                                            nn.ReLU(),
-                                            nn.Linear(64, available_actions_count))
+                                    nn.ReLU(),
+                                    nn.Linear(64, available_actions_count))
 
     def forward(self, state):
         state = self.convolution_1(state)
@@ -47,20 +47,20 @@ class DuelQNet(nn.Module):
     def __init__(self, available_actions_count):
         super().__init__()
         self.convolution_1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                                    nn.BatchNorm2d(8),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(8),
+                                            nn.ReLU())
         self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                                    nn.BatchNorm2d(16),
-                                    nn.ReLU())
+                                            nn.BatchNorm2d(16),
+                                            nn.ReLU())
         self.state_fc = nn.Sequential(nn.Linear(96, 64),
-                                    nn.ReLU(),
-                                    nn.Linear(64, 1))
+                                        nn.ReLU(),
+                                        nn.Linear(64, 1))
         self.advantage_fc = nn.Sequential(nn.Linear(96, 64),
                                             nn.ReLU(),
                                             nn.Linear(64, available_actions_count))
