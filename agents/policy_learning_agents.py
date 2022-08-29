@@ -31,7 +31,7 @@ class PolicyNet(nn.Module):
         self.linear_policy = nn.Sequential(nn.Linear(192, 64),
                                         nn.ReLU(),
                                         nn.Linear(64, available_actions_count),
-                                        nn.Softmax())
+                                        nn.Softmax(dim=-1))
 
     def forward(self, state):
         state = self.convolution_1(state)

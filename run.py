@@ -184,7 +184,7 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
         test(game, agent, frame_repeat)
         if save_model:
             print("Saving the network weights to:", agent.model_save_file_path)
-            torch.save(agent.q_net, agent.model_save_file_path)
+            torch.save(agent.policy_net, agent.model_save_file_path)
 
     game.close()
 
