@@ -111,17 +111,30 @@ class PolicyLearningAgent:
                 # get probability of action based on target (old) network
                 # the target network will not be trained here
                 state_policy_values = self.target_net(torch.from_numpy(states).float()).cpu().data.numpy()
-                action_probabilities = state_policy_values[actions]
+                
 
-                for row in row_idx:
-                    print(state_policy_values[row, :])
-                    print(rewards[row])
-                    print(action_probabilities[row, :])
+                mask = np.repeat(np.array(range(state_policy_values.shape[1])).reshape((1,state_policy_values.shape[1])), state_policy_values.shape[0], axis=0)
+                mask = np.equal(mask, actions.reshape(-1,1))
+
+                action_probabilities = state_policy_values * mask
+
+
+                print(actions, mask, action_probabilities)
+
+                print(state_policy_values.shape, rewards.shape, actions.shape)                
+                
+                
+                # action_probabilities = state_policy_values[actions]
+
+                # for row in row_idx:
+                #     print(state_policy_values[row, :])
+                #     print(rewards[row])
+                #     print(action_probabilities[row, :])
 
 
 
-                    print("here")
-                    exit(0)
+                print("here")
+                exit(0)
 
 
 
