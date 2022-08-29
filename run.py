@@ -155,7 +155,9 @@ if __name__ == '__main__':
         torch.backends.cudnn.benchmark = True
     # agent = agents.RandomAgent(device, len(actions))
     # agent = agents.DQNAgent(device, len(actions))
-    agent = agents.QNAgent(device, len(actions))
+    # agent = agents.QNAgent(device, len(actions))
+
+    agent = agents.QLearningAgent(device, len(actions), agents.QNet, torch.nn.HuberLoss())
 
     # run training and testing
     run(game, actions, agent)

@@ -152,38 +152,38 @@ class DQNAgent:
         else:
             self.epsilon = self.epsilon_min
 
-class QNAgent:
-    class QNet(nn.Module):
-        # deep q learning architecture
-        def __init__(self, available_actions_count):
-            super().__init__()
-            self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
-                                        nn.BatchNorm2d(8),
-                                        nn.ReLU())
-            self.conv2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
-                                        nn.BatchNorm2d(8),
-                                        nn.ReLU())
-            self.conv3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
-                                        nn.BatchNorm2d(8),
-                                        nn.ReLU())
-            self.conv4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
-                                        nn.BatchNorm2d(16),
-                                        nn.ReLU())
-            self.q_fc = nn.Sequential(nn.Linear(192, 64),
-                                                nn.ReLU(),
-                                                nn.Linear(64, available_actions_count))
+class QNet(nn.Module):
+    # deep q learning architecture
+    def __init__(self, available_actions_count):
+        super().__init__()
+        self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+                                    nn.BatchNorm2d(8),
+                                    nn.ReLU())
+        self.conv2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+                                    nn.BatchNorm2d(8),
+                                    nn.ReLU())
+        self.conv3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+                                    nn.BatchNorm2d(8),
+                                    nn.ReLU())
+        self.conv4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+                                    nn.BatchNorm2d(16),
+                                    nn.ReLU())
+        self.q_fc = nn.Sequential(nn.Linear(192, 64),
+                                            nn.ReLU(),
+                                            nn.Linear(64, available_actions_count))
 
-        def forward(self, x):
-            x = self.conv1(x)
-            x = self.conv2(x)
-            x = self.conv3(x)
-            x = self.conv4(x)
-            x = x.view(-1, 192)
-            x = self.q_fc(x)
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = x.view(-1, 192)
+        x = self.q_fc(x)
 
-            return x
+        return x
 
-    def __init__(self, device, action_size, memory_size=10000, batch_size=64, 
+class QLearningAgent:
+    def __init__(self, device, action_size, q_network, loss_criterion, memory_size=10000, batch_size=64, 
                  lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
@@ -196,7 +196,7 @@ class QNAgent:
         self.epsilon_min = epsilon_min
         os.makedirs(log_directory_name, exist_ok=True)
         self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
-        self.criterion = nn.HuberLoss()
+        self.criterion = loss_criterion
 
         if load_model:
             print("Loading model from: ", self.model_save_file_path)
@@ -206,8 +206,8 @@ class QNAgent:
 
         else:
             print("Initializing new model")
-            self.q_net = self.QNet(action_size).to(self.device)
-            self.target_net = self.QNet(action_size).to(self.device)
+            self.q_net = q_network(action_size).to(self.device)
+            self.target_net = q_network(action_size).to(self.device)
 
         self.opt = optim.SGD(self.q_net.parameters(), lr=lr)
 
