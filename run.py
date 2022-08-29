@@ -83,7 +83,7 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
             # add to data buffer
             agent.append_memory(state, action, reward, next_state, done)
 
-            if global_step > agent.batch_size:
+            if global_step >= agent.batch_size:
                 agent.train()
 
             if done:
@@ -149,6 +149,10 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
         for episode in trange(episodes_per_epoch):
             game.new_episode()
 
+            # remove previous episode data stored in data buffer
+            # this is to avoid having unseen state transitions in our recording 
+            agent.clear_memory(episode)
+
             # play through episode
             while not game.is_episode_finished():
                 state = preprocess_image_data(game.get_state().screen_buffer)
@@ -165,7 +169,7 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
                 # add to data buffer
                 agent.append_memory(episode, state, action, reward, next_state, done)
 
-            if global_step > agent.memory_size:
+            if global_step >= agent.memory_size:
                 agent.train()
 
             train_scores.append(game.get_total_reward())

@@ -44,7 +44,7 @@ class PolicyNet(nn.Module):
         return policy
 
 class PolicyLearningAgent:
-    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=32, batch_size=16, 
+    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=16, batch_size=16, 
                  lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
@@ -86,6 +86,10 @@ class PolicyLearningAgent:
     def update(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
+    def clear_memory(self, episode_index):
+        data_buffer_index = episode_index % self.memory_size
+        self.memory[data_buffer_index].clear()
+
     def append_memory(self, episode_index, state, action, reward, next_state, done):
         data_buffer_index = episode_index % self.memory_size
         self.memory[data_buffer_index].append((state, action, reward, next_state, done))
@@ -120,7 +124,7 @@ class PolicyLearningAgent:
             discounted_rewards = torch.tensor(rewards * discounts, dtype=torch.float32, requires_grad=True)
 
             # calculate loss
-            episode_loss = -1 * torch.sum(log_probability) * torch.sum(discounted_rewards)
+            episode_loss = -1 * torch.sum(log_probability * discounted_rewards.reshape((-1, 1)))
             total_loss = total_loss + episode_loss
 
         average_loss = total_loss / self.batch_size
