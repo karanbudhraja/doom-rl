@@ -64,11 +64,8 @@ class QNet(nn.Module):
         return x
 
 class DuelQNet(nn.Module):
-    """
-    This is Duel DQN architecture.
-    see https://arxiv.org/abs/1511.06581 for more information.
-    """
-
+    # duel DQN architecture
+    # see https://arxiv.org/abs/1511.06581 for more information
     def __init__(self, available_actions_count):
         super().__init__()
         self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
