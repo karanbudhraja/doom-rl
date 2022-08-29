@@ -175,6 +175,10 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
             train_scores.append(game.get_total_reward())
             global_step += 1
 
+            # interim model updates
+            if(global_step % agent.memory_size == 0):
+                agent.update()
+
         # update model
         # record data
         agent.update()

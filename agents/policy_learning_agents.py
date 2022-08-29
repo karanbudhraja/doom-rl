@@ -44,7 +44,7 @@ class PolicyNet(nn.Module):
         return policy
 
 class PolicyLearningAgent:
-    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=16, batch_size=16, 
+    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=32, batch_size=16, 
                  lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
