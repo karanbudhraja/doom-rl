@@ -42,7 +42,7 @@ def create_game(configuration_file_name="basic.cfg"):
 def test(game, agent, frame_repeat, test_episodes_per_epoch=100):
     # run test episodes and print result
     test_scores = []
-    for test_episode in trange(test_episodes_per_epoch, leave=False):
+    for test_episode in trange(test_episodes_per_epoch):
         game.new_episode()
         while not game.is_episode_finished():
             state = preprocess_image_data(game.get_state().screen_buffer)
@@ -68,7 +68,7 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
         global_step = 0
         print("\nEpoch #" + str(epoch + 1))
 
-        for _ in trange(steps_per_epoch, leave=False):
+        for _ in trange(steps_per_epoch):
             state = preprocess_image_data(game.get_state().screen_buffer)
             action = agent.get_action(state)
             reward = game.make_action(actions[action], frame_repeat)
@@ -92,6 +92,8 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
 
             global_step += 1
 
+        # update model
+        # record data
         agent.update()
         train_scores = np.array(train_scores)
 
@@ -132,7 +134,7 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
         score = game.get_total_reward()
         print("Total score: ", score)
 
-def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, episodes_to_watch=10, save_model=True):
+def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, episodes_per_epoch=2000, episodes_to_watch=10, save_model=True):
     #
     # training
     #
@@ -140,35 +142,37 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, s
     # run training episodes
     # skip a few frames after each action
     for epoch in range(num_epochs):
-        game.new_episode()
         train_scores = []
         global_step = 0
         print("\nEpoch #" + str(epoch + 1))
 
-        for _ in trange(steps_per_epoch, leave=False):
-            state = preprocess_image_data(game.get_state().screen_buffer)
-            action = agent.get_action(state)
-            reward = game.make_action(actions[action], frame_repeat)
-            done = game.is_episode_finished()
+        for episode in trange(episodes_per_epoch):
+            game.new_episode()
 
-            if not done:
-                next_state = preprocess_image_data(game.get_state().screen_buffer)
-            else:
-                # padding in case the episode has been finished
-                next_state = np.zeros((1, 30, 45)).astype(np.float32)
+            # play through episode
+            while not game.is_episode_finished():
+                state = preprocess_image_data(game.get_state().screen_buffer)
+                action = agent.get_action(state)
+                reward = game.make_action(actions[action], frame_repeat)
+                done = game.is_episode_finished()
 
-            # add to data buffer
-            agent.append_memory(state, action, reward, next_state, done)
+                if not done:
+                    next_state = preprocess_image_data(game.get_state().screen_buffer)
+                else:
+                    # padding in case the episode has been finished
+                    next_state = np.zeros((1, 30, 45)).astype(np.float32)
 
-            if global_step > agent.batch_size:
+                # add to data buffer
+                agent.append_memory(episode, state, action, reward, next_state, done)
+
+            if global_step > agent.memory_size:
                 agent.train()
 
-            if done:
-                train_scores.append(game.get_total_reward())
-                game.new_episode()
-
+            train_scores.append(game.get_total_reward())
             global_step += 1
 
+        # update model
+        # record data
         agent.update()
         train_scores = np.array(train_scores)
 
@@ -233,8 +237,8 @@ if __name__ == '__main__':
  
     # agent = random_agents.RandomAgent(device, len(actions))
     # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.QNet, torch.nn.MSELoss())
-    agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
-    run_random_sampling(game, actions, agent)
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
+    # run_random_sampling(game, actions, agent)
 
-    # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
-    # run_episodic_sampling(game, actions, agent)
+    agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+    run_episodic_sampling(game, actions, agent)

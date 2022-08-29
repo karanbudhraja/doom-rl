@@ -139,7 +139,8 @@ class QLearningAgent:
         dones = batch[:, 4].astype(bool)
         not_dones = ~dones
 
-        row_idx = np.arange(self.batch_size)  # used for indexing the batch
+        # batch indexing
+        row_idx = np.arange(self.batch_size)
 
         # value of the next states with double q learning
         # see https://arxiv.org/abs/1509.06461 for more information on double q learning

@@ -45,12 +45,13 @@ class PolicyNet(nn.Module):
         return policy
 
 class PolicyLearningAgent:
-    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=10000, batch_size=64, 
+    def __init__(self, device, action_size, policy_network, loss_criterion, memory_size=32, batch_size=16, 
                  lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
         self.action_size = action_size
-        self.memory = deque(maxlen=memory_size)
+        self.memory_size = memory_size
+        self.memory = [deque() for _ in range(memory_size)]
         self.batch_size = batch_size
         self.discount = discount_factor
         self.epsilon = epsilon
@@ -86,21 +87,46 @@ class PolicyLearningAgent:
     def update(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    def append_memory(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def append_memory(self, episode_index, state, action, reward, next_state, done):
+        data_buffer_index = episode_index % self.memory_size
+        self.memory[data_buffer_index].append((state, action, reward, next_state, done))
 
     def train(self):
-        batch = random.sample(self.memory, self.batch_size)
-        batch = np.array(batch, dtype=object)
+        batches = random.sample(self.memory, self.batch_size)
+        
+        # process each episode in sample of episodes
+        for batch in batches:
+            batch = np.array(batch, dtype=object)
+            states = np.stack(batch[:, 0]).astype(float)
+            actions = batch[:, 1].astype(int)
+            rewards = batch[:, 2].astype(float)
+            next_states = np.stack(batch[:, 3]).astype(float)
+            dones = batch[:, 4].astype(bool)
+            not_dones = ~dones
 
-        states = np.stack(batch[:, 0]).astype(float)
-        actions = batch[:, 1].astype(int)
-        rewards = batch[:, 2].astype(float)
-        next_states = np.stack(batch[:, 3]).astype(float)
-        dones = batch[:, 4].astype(bool)
-        not_dones = ~dones
+            # batch indexing
+            row_idx = np.arange(self.batch_size)
 
-        row_idx = np.arange(self.batch_size)  # used for indexing the batch
+            with torch.no_grad():
+                # get probability of action based on target (old) network
+                # the target network will not be trained here
+                state_policy_values = self.target_net(torch.from_numpy(states).float()).cpu().data.numpy()
+                action_probabilities = state_policy_values[actions]
+
+                for row in row_idx:
+                    print(state_policy_values[row, :])
+                    print(rewards[row])
+                    print(action_probabilities[row, :])
+
+
+
+                    print("here")
+                    exit(0)
+
+
+
+
+
 
         # value of the next states with double q learning
         # see https://arxiv.org/abs/1509.06461 for more information on double q learning
@@ -117,10 +143,6 @@ class PolicyLearningAgent:
             action_probabilities = state_policy_values[actions]
             print(action_probabilities.shape)
 
-            for row in row_idx:
-                print(state_policy_values[row, :])
-                print(rewards[row])
-                print(action_probabilities[row, :])
 
 
             exit(0)
