@@ -39,6 +39,7 @@ class PolicyNet(nn.Module):
         state = state.view(-1, 192)
         policy = self.linear_policy(state)
 
+
         return policy
 
 class PolicyLearningAgent:
