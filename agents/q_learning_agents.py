@@ -171,6 +171,3 @@ class QLearningAgent:
             self.epsilon *= self.epsilon_decay
         else:
             self.epsilon = self.epsilon_min
-
-def train():
-    pass

@@ -34,8 +34,6 @@ class PolicyNet(nn.Module):
                                         nn.Softmax())
 
     def forward(self, state):
-        print("in here")
-
         state = self.convolution_1(state)
         state = self.convolution_2(state)
         state = self.convolution_3(state)
