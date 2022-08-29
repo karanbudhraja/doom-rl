@@ -15,47 +15,47 @@ class QNet(nn.Module):
     # deep q learning architecture
     def __init__(self, available_actions_count):
         super().__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+        self.convolution_1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+        self.convolution_2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+        self.convolution_3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+        self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
                                     nn.BatchNorm2d(16),
                                     nn.ReLU())
         self.q_fc = nn.Sequential(nn.Linear(192, 64),
                                             nn.ReLU(),
                                             nn.Linear(64, available_actions_count))
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = x.view(-1, 192)
-        x = self.q_fc(x)
+    def forward(self, state):
+        state = self.convolution_1(state)
+        state = self.convolution_2(state)
+        state = self.convolution_3(state)
+        state = self.convolution_4(state)
+        state = state.view(-1, 192)
+        q_value = self.q_fc(state)
 
-        return x
+        return q_value
 
 class DuelQNet(nn.Module):
-    # duel DQN architecture
+    # duel dqn architecture
     # see https://arxiv.org/abs/1511.06581 for more information
     def __init__(self, available_actions_count):
         super().__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
+        self.convolution_1 = nn.Sequential(nn.Conv2d(1, 8, kernel_size=3, stride=2, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
+        self.convolution_2 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=2, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
+        self.convolution_3 = nn.Sequential(nn.Conv2d(8, 8, kernel_size=3, stride=1, bias=False),
                                     nn.BatchNorm2d(8),
                                     nn.ReLU())
-        self.conv4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
+        self.convolution_4 = nn.Sequential(nn.Conv2d(8, 16, kernel_size=3, stride=1, bias=False),
                                     nn.BatchNorm2d(16),
                                     nn.ReLU())
         self.state_fc = nn.Sequential(nn.Linear(96, 64),
@@ -65,19 +65,23 @@ class DuelQNet(nn.Module):
                                             nn.ReLU(),
                                             nn.Linear(64, available_actions_count))
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = x.view(-1, 192)
-        x1 = x[:, :96]  # input for the net to calculate the state value
-        x2 = x[:, 96:]  # relative advantage of actions in the state
-        state_value = self.state_fc(x1).reshape(-1, 1)
-        advantage_values = self.advantage_fc(x2)
-        x = state_value + (advantage_values - advantage_values.mean(dim=1).reshape(-1, 1))
+    def forward(self, state):
+        state = self.convolution_1(state)
+        state = self.convolution_2(state)
+        state = self.convolution_3(state)
+        state = self.convolution_4(state)
+        state = state.view(-1, 192)
 
-        return x
+        # subset 1: input for the net to calculate the state value
+        # subset 2: relative advantage of actions in the state
+        state_subset_1 = state[:, :96]
+        state_subset_2 = state[:, 96:]
+
+        state_value = self.state_fc(state_subset_1).reshape(-1, 1)
+        advantage_values = self.advantage_fc(state_subset_2)
+        q_value = state_value + (advantage_values - advantage_values.mean(dim=1).reshape(-1, 1))
+
+        return q_value
 
 class QLearningAgent:
     def __init__(self, device, action_size, q_network, loss_criterion, memory_size=10000, batch_size=64, 
