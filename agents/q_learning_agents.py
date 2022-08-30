@@ -95,6 +95,7 @@ class QLearningAgent:
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
+        self.log_directory_name = log_directory_name
         os.makedirs(log_directory_name, exist_ok=True)
         self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
         self.criterion = loss_criterion
@@ -171,3 +172,5 @@ class QLearningAgent:
             self.epsilon *= self.epsilon_decay
         else:
             self.epsilon = self.epsilon_min
+
+        return td_error.clone().item()
