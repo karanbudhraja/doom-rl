@@ -136,42 +136,15 @@ class PolicyLearningAgent:
             log_importance = policy_log_probability - target_log_probability
             log_importance_weights = torch.zeros(len(rewards), dtype=torch.float32, requires_grad=True)
             for index in np.arange(len(rewards)):
-                # importance_weight = torch.exp(torch.sum(log_importance[:,:index]))
-                # print(importance_weight)
-
-
-
-                # todo karan make mask
-
-                log_importance_weights = log_importance_weights + torch.sum(log_importance[:,:index])
-
-
-            print(log_importance.shape)
-            exit(0)
-
+                # use mask to convert to addition
+                current_mask = torch.tensor(np.arange(len(rewards)) == index, dtype=torch.float16)
+                current_masked_importance_weights = current_mask * torch.sum(log_importance[:,:index])
+                log_importance_weights = log_importance_weights + current_masked_importance_weights
             importance_weights = torch.exp(log_importance_weights)
-
-            #     _importance_weights.append(importance_weight)
-            # # importance_weights = torch.cat(_importance_weights)
-
-
-
-            print(policy_log_probability.shape)
-            # print(projected_state_values.reshape(-1,1).shape)
-            print(_importance_weights)
-            exit(0)
-
-            # KARAN TODO
-            # use importance weight instead
-            # divide by target net probabilities
-            # make another bernoulli and divide
-            # for the timesteps seen so far
-
-
 
             # calculate loss
             projected_state_values = torch.tensor(_projected_state_values, dtype=torch.float32, requires_grad=True)
-            episode_loss = -1 * torch.sum(policy_log_probability * projected_state_values.reshape((-1, 1)))
+            episode_loss = -1 * torch.sum(policy_log_probability * importance_weights * projected_state_values.reshape((-1, 1)))
             total_loss = total_loss + episode_loss
 
         average_loss = total_loss / self.batch_size
