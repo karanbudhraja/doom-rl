@@ -144,7 +144,8 @@ class PolicyLearningAgent:
 
             # calculate loss
             projected_state_values = torch.tensor(_projected_state_values, dtype=torch.float32, requires_grad=True)
-            episode_loss = -1 * torch.sum(policy_log_probability * importance_weights * projected_state_values.reshape((-1, 1)))
+            # episode_loss = -1 * torch.sum(policy_log_probability * importance_weights * projected_state_values.reshape((-1, 1)))
+            episode_loss = -1 * torch.sum(policy_log_probability * projected_state_values.reshape((-1, 1)))
             total_loss = total_loss + episode_loss
 
         average_loss = total_loss / self.batch_size
