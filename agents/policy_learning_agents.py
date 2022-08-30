@@ -6,7 +6,7 @@ import torch.optim as optim
 import random
 from collections import deque
 import os
-from torch.distributions import Bernoulli
+from torch.distributions import Categorical
 
 #
 # predict actions
@@ -102,7 +102,7 @@ class PolicyLearningAgent:
         for batch in batches:
             batch = np.array(batch, dtype=object)
             states = np.stack(batch[:, 0]).astype(float)
-            actions = batch[:, 1].astype(int)
+            _actions = batch[:, 1].astype(int)
             rewards = batch[:, 2].astype(float)
 
             # convert rewards to projected state values
@@ -117,17 +117,61 @@ class PolicyLearningAgent:
             dones = batch[:, 4].astype(bool)
             not_dones = ~dones
 
-            # get log probability of action based on policy network
-            action_probabilities = self.policy_net(torch.from_numpy(states).float())
-            probability_model = Bernoulli(action_probabilities)            
-            mask = np.repeat(np.array(range(action_probabilities.shape[1])).reshape((1, action_probabilities.shape[1])), action_probabilities.shape[0], axis=0)            
-            masked_action_probabilities = torch.tensor(np.equal(mask, actions.reshape(-1, 1)), dtype=torch.float32, requires_grad=True)
-            log_probability = probability_model.log_prob(masked_action_probabilities)
-            log_probability = log_probability * masked_action_probabilities
+            # get log probability of action based on policy and target networks
+            # calulate importance weight
+            actions = torch.tensor(_actions, dtype=torch.float32, requires_grad=True).reshape(1, -1)
+            policy_action_probabilities = self.policy_net(torch.from_numpy(states).float())
+
+            policy_probability_model = Categorical(policy_action_probabilities)                  
+            policy_log_probability = policy_probability_model.log_prob(actions)
+
+            policy_action_probabilities = self.policy_net(torch.from_numpy(states).float())
+            policy_probability_model = Categorical(policy_action_probabilities)                  
+            policy_log_probability = policy_probability_model.log_prob(actions)
+
+            target_action_probabilities = self.target_net(torch.from_numpy(states).float())
+            target_probability_model = Categorical(target_action_probabilities)                  
+            target_log_probability = target_probability_model.log_prob(actions)
+
+            log_importance = policy_log_probability - target_log_probability
+            log_importance_weights = torch.zeros(len(rewards), dtype=torch.float32, requires_grad=True)
+            for index in np.arange(len(rewards)):
+                # importance_weight = torch.exp(torch.sum(log_importance[:,:index]))
+                # print(importance_weight)
+
+
+
+                # todo karan make mask
+
+                log_importance_weights = log_importance_weights + torch.sum(log_importance[:,:index])
+
+
+            print(log_importance.shape)
+            exit(0)
+
+            importance_weights = torch.exp(log_importance_weights)
+
+            #     _importance_weights.append(importance_weight)
+            # # importance_weights = torch.cat(_importance_weights)
+
+
+
+            print(policy_log_probability.shape)
+            # print(projected_state_values.reshape(-1,1).shape)
+            print(_importance_weights)
+            exit(0)
+
+            # KARAN TODO
+            # use importance weight instead
+            # divide by target net probabilities
+            # make another bernoulli and divide
+            # for the timesteps seen so far
+
+
 
             # calculate loss
             projected_state_values = torch.tensor(_projected_state_values, dtype=torch.float32, requires_grad=True)
-            episode_loss = -1 * torch.sum(log_probability * projected_state_values.reshape((-1, 1)))
+            episode_loss = -1 * torch.sum(policy_log_probability * projected_state_values.reshape((-1, 1)))
             total_loss = total_loss + episode_loss
 
         average_loss = total_loss / self.batch_size
