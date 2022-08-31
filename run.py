@@ -212,6 +212,8 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
             # interim model updates
             if(global_step % agent.memory_size == 0):
                 agent.update()
+            else:
+                agent.update()
 
         # update model
         # record data
@@ -261,8 +263,8 @@ if __name__ == '__main__':
  
     # agent = random_agents.RandomAgent(device, len(actions))
     # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.QNet, torch.nn.MSELoss())
-    agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
-    run_random_sampling(game, actions, agent)
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
+    # run_random_sampling(game, actions, agent)
 
-    # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
-    # run_episodic_sampling(game, actions, agent)
+    agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+    run_episodic_sampling(game, actions, agent)
