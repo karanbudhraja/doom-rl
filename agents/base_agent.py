@@ -6,7 +6,7 @@ from collections import deque
 import os
 
 class BaseAgent(ABC):
-    def __init__(self, device, action_size, loss_criterion=None, memory_size=32, episode_memory_size=10000, batch_size=16, 
+    def __init__(self, device, action_size, loss_criterion=torch.nn.MSELoss(), memory_size=32, episode_memory_size=10000, batch_size=16, 
                  opt=optim.SGD, lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
@@ -22,7 +22,7 @@ class BaseAgent(ABC):
         os.makedirs(log_directory_name, exist_ok=True)
         self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
         self.criterion = loss_criterion
-        self.opt = opt
+        self._opt = opt
         self.lr = lr
 
         if(load_model == True):
@@ -38,20 +38,20 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def get_action(self, state):
-        pass
+        ...
 
     @abstractmethod
     def update(self):
-        pass
+        ...
 
     @abstractmethod
     def train(self):
-        pass
+        ...
 
     @abstractmethod
     def save(self):
-        pass
+        ...
 
     @abstractmethod
     def load(self):
-        pass
+        ...

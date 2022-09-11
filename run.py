@@ -14,7 +14,7 @@ from tqdm import trange
 
 import matplotlib.pyplot as plt
 
-from agents import random_agents, q_learning_agents, policy_learning_agents
+from agents import networks, random_agents, q_learning_agents, policy_learning_agents
 
 #
 # functions
@@ -99,72 +99,7 @@ def get_results(game, agent, frame_repeat, epoch_average_loss_values, epoch_aver
         score = game.get_total_reward()
         print("Total score: ", score)
 
-def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, steps_per_epoch=2000, save_model=True):
-    #
-    # training
-    #
-    
-    # run training episodes
-    # skip a few frames after each action
-    epoch_average_train_scores = []
-    epoch_average_loss_values = []
-    for epoch in range(num_epochs):
-        game.new_episode()
-        train_scores = []
-        global_step = 0
-        print("\nEpoch #" + str(epoch + 1))
-
-        loss_values = []
-        for _ in trange(steps_per_epoch):
-            state = preprocess_image_data(game.get_state().screen_buffer)
-            action = agent.get_action(state)
-            reward = game.make_action(actions[action], frame_repeat)
-            done = game.is_episode_finished()
-
-            if not done:
-                next_state = preprocess_image_data(game.get_state().screen_buffer)
-            else:
-                # padding in case the episode has been finished
-                next_state = np.zeros((1, 30, 45)).astype(np.float32)
-
-            # add to data buffer
-            agent.append_memory(state, action, reward, next_state, done)
-
-            if global_step >= agent.batch_size:
-                loss = agent.train()
-                loss_values.append(loss)
-
-            if done:
-                train_scores.append(game.get_total_reward())
-                game.new_episode()
-
-            global_step += 1
-
-        # update model
-        # record data
-        agent.update()
-        train_scores = np.array(train_scores)
-
-        # training results
-        print("Results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()),
-              "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
-
-        # testing results
-        test(game, agent, frame_repeat)
-        if save_model:
-            print("Saving the network weights to:", agent.model_save_file_path)
-            torch.save(agent.q_net, agent.model_save_file_path)
-
-        # get epoch statistics
-        epoch_average_loss_values.append(np.mean(loss_values))
-        epoch_average_train_scores.append(np.mean(train_scores))
-
-    game.close()
-
-    # check performance and save results
-    get_results(game, agent, frame_repeat, epoch_average_loss_values, epoch_average_train_scores)
-
-def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=2, episodes_per_epoch=100, episodes_to_watch=10, save_model=True):
+def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=100, episodes_per_epoch=100, save_model=False):
     #
     # training
     #
@@ -175,7 +110,6 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=2, e
     epoch_average_loss_values = []
     for epoch in range(num_epochs):
         train_scores = []
-        global_step = 0
         print("\nEpoch #" + str(epoch + 1))
 
         loss_values = []
@@ -202,12 +136,11 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=2, e
                 # add to data buffer
                 agent.append_memory(episode, state, action, reward, next_state, done)
 
-            if (global_step >= agent.memory_size):
+            if (episode >= agent.batch_size):
                 loss = agent.train()
                 loss_values.append(loss)
 
             train_scores.append(game.get_total_reward())
-            global_step += 1
 
         # update model
         # record data
@@ -261,5 +194,12 @@ if __name__ == '__main__':
     # run_random_sampling(game, actions, agent)
 
     # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+
+
+
     agent = random_agents.RandomAgent(device, len(actions))
+    agent = q_learning_agents.QLearningAgent(device, len(actions), networks.QNet)
+
+
+
     run_episodic_sampling(game, actions, agent)

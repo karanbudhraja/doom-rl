@@ -1,44 +1,30 @@
 import torch
 import numpy as np
-
-import torch.optim as optim
 import random
-from collections import deque
-import os
+from agents.base_agent import BaseAgent
 
 #
 # predict q values
 #
 
-class QLearningAgent:
-    def __init__(self, device, action_size, q_network, loss_criterion, memory_size=10000, batch_size=64, 
-                 lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
-                 load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
-        self.device = device
-        self.action_size = action_size
-        self.memory = deque(maxlen=memory_size)
-        self.batch_size = batch_size
-        self.discount = discount_factor
-        self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
-        self.epsilon_min = epsilon_min
-        self.log_directory_name = log_directory_name
-        os.makedirs(log_directory_name, exist_ok=True)
-        self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
-        self.criterion = loss_criterion
+class QLearningAgent(BaseAgent):
+    def __init__(self, device, action_size, q_network):
+        super().__init__(device, action_size)
 
-        if load_model:
-            print("Loading model from: ", self.model_save_file_path)
-            self.q_net = torch.load(self.model_save_file_path)
-            self.target_net = torch.load(self.model_save_file_path)
-            self.epsilon = self.epsilon_min
+        self.q_net = q_network(action_size).to(self.device)
+        self.target_net = q_network(action_size).to(self.device)
+        self.opt = self._opt(self.q_net.parameters(), lr=self.lr)
 
-        else:
-            print("Initializing new model")
-            self.q_net = q_network(action_size).to(self.device)
-            self.target_net = q_network(action_size).to(self.device)
+    def clear_memory(self, episode_index):
+        data_buffer_index = episode_index % self.memory_size
 
-        self.opt = optim.SGD(self.q_net.parameters(), lr=lr)
+        # don't clear primary buffer
+        if(data_buffer_index > 0):
+            self.memory[data_buffer_index].clear()
+
+    def append_memory(self, episode, state, action, reward, next_state, done):
+        # use a single queue for q-learning agents
+        self.memory[0].append((state, action, reward, next_state, done))
 
     def get_action(self, state):
         if np.random.uniform() < self.epsilon:
@@ -52,12 +38,9 @@ class QLearningAgent:
 
     def update(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
-
-    def append_memory(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
-
+    
     def train(self):
-        batch = random.sample(self.memory, self.batch_size)
+        batch = random.sample(self.memory[0], self.batch_size)
         batch = np.array(batch, dtype=object)
 
         states = np.stack(batch[:, 0]).astype(float)
@@ -101,3 +84,9 @@ class QLearningAgent:
             self.epsilon = self.epsilon_min
 
         return td_error.clone().item()
+
+    def save(self):
+        pass
+
+    def load(self):
+        pass
