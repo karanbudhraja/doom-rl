@@ -20,3 +20,6 @@ class RandomAgent(BaseAgent):
 
     def save(self):
         pass
+
+    def load(self):
+        pass

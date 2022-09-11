@@ -6,13 +6,13 @@ from collections import deque
 import os
 
 class BaseAgent(ABC):
-    def __init__(self, device, action_size, policy_network=None, loss_criterion=None, memory_size=32, batch_size=16, 
-                 lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
+    def __init__(self, device, action_size, loss_criterion=None, memory_size=32, episode_memory_size=10000, batch_size=16, 
+                 opt=optim.SGD, lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
         self.action_size = action_size
         self.memory_size = memory_size
-        self.memory = [deque() for _ in range(memory_size)]
+        self.memory = [deque(maxlen=episode_memory_size) for _ in range(memory_size)]
         self.batch_size = batch_size
         self.discount = discount_factor
         self.epsilon = epsilon
@@ -22,20 +22,11 @@ class BaseAgent(ABC):
         os.makedirs(log_directory_name, exist_ok=True)
         self.model_save_file_path = os.path.join(log_directory_name, model_save_file_name)
         self.criterion = loss_criterion
-        self.opt = None
+        self.opt = opt
+        self.lr = lr
 
-        if(policy_network != None):
-            if load_model:
-                print("Loading model from: ", self.model_save_file_path)
-                self.policy_net = torch.load(self.model_save_file_path)
-                self.target_net = torch.load(self.model_save_file_path)
-                self.epsilon = self.epsilon_min
-            else:
-                print("Initializing new model")
-                self.policy_net = policy_network(action_size).to(self.device)
-                self.target_net = policy_network(action_size).to(self.device)
-
-            self.opt = optim.SGD(self.policy_net.parameters(), lr=lr)
+        if(load_model == True):
+            self.load()
 
     def clear_memory(self, episode_index):
         data_buffer_index = episode_index % self.memory_size
@@ -59,4 +50,8 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def save(self):
+        pass
+
+    @abstractmethod
+    def load(self):
         pass
