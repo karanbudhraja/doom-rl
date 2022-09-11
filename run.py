@@ -187,18 +187,11 @@ if __name__ == '__main__':
         device = torch.device('cuda')
         torch.backends.cudnn.benchmark = True
  
+    # instantiate agent
     # agent = random_agents.RandomAgent(device, len(actions))
-    # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.QNet, torch.nn.MSELoss())
-    # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
-    # run_random_sampling(game, actions, agent)
-
-    # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
-
-
-
-    # agent = random_agents.RandomAgent(device, len(actions))
-    agent = q_learning_agents.QLearningAgent(device, len(actions), networks.QNet)
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), networks.QNet)
     # agent = q_learning_agents.QLearningAgent(device, len(actions), networks.DuelQNet)
+    agent = policy_learning_agents.REINFORCEAgent(device, len(actions), networks.PolicyNet)
 
-
+    # gather data and train agent
     run_episodic_sampling(game, actions, agent)
