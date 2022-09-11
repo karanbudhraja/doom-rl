@@ -155,8 +155,8 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=100,
 
         # get epoch statistics
         loss_values = np.array(loss_values)
-        print("Epoch loss: mean: %.1f", loss_values.mean())
-        print("Epoch scores: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()), "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
+        print("Epoch results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()), "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
+        print("Epoch loss: mean: %.1f +/- %.1f," % (loss_values.mean(), loss_values.std()), "min: %.1f," % loss_values.min(), "max: %.1f," % loss_values.max())
         epoch_average_loss_values.append(loss_values.mean())
         epoch_average_train_scores.append(train_scores.mean())
 
