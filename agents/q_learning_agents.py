@@ -16,11 +16,8 @@ class QLearningAgent(BaseAgent):
         self.opt = self._opt(self.q_net.parameters(), lr=self.lr)
 
     def clear_memory(self, episode_index):
-        data_buffer_index = episode_index % self.memory_size
-
-        # don't clear primary buffer
-        if(data_buffer_index > 0):
-            self.memory[data_buffer_index].clear()
+        # keep all data that fits in queue
+        pass
 
     def append_memory(self, episode, state, action, reward, next_state, done):
         # use a single queue for q-learning agents
