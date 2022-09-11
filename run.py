@@ -164,7 +164,7 @@ def run_random_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, ste
     # check performance and save results
     get_results(game, agent, frame_repeat, epoch_average_loss_values, epoch_average_train_scores)
 
-def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, episodes_per_epoch=2000, episodes_to_watch=10, save_model=True):
+def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=2, episodes_per_epoch=100, episodes_to_watch=10, save_model=True):
     #
     # training
     #
@@ -183,7 +183,7 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
             game.new_episode()
 
             # remove previous episode data stored in data buffer
-            # this is to avoid having unseen state transitions in our recording 
+            # this is to avoid having unseen state transitions in our recording from overlapped episodes
             agent.clear_memory(episode)
 
             # play through episode
@@ -202,18 +202,12 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
                 # add to data buffer
                 agent.append_memory(episode, state, action, reward, next_state, done)
 
-            if global_step >= agent.memory_size:
+            if (global_step >= agent.memory_size):
                 loss = agent.train()
                 loss_values.append(loss)
 
             train_scores.append(game.get_total_reward())
             global_step += 1
-
-            # interim model updates
-            if(global_step % agent.memory_size == 0):
-                agent.update()
-            else:
-                agent.update()
 
         # update model
         # record data
@@ -228,7 +222,7 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=5, e
         test(game, agent, frame_repeat)
         if save_model:
             print("Saving the network weights to:", agent.model_save_file_path)
-            torch.save(agent.policy_net, agent.model_save_file_path)
+            agent.save()
 
         # get epoch statistics
         epoch_average_loss_values.append(np.mean(loss_values))
@@ -266,5 +260,6 @@ if __name__ == '__main__':
     # agent = q_learning_agents.QLearningAgent(device, len(actions), q_learning_agents.DuelQNet, torch.nn.MSELoss())
     # run_random_sampling(game, actions, agent)
 
-    agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+    # agent = policy_learning_agents.PolicyLearningAgent(device, len(actions), policy_learning_agents.PolicyNet, torch.nn.MSELoss())
+    agent = random_agents.RandomAgent(device, len(actions))
     run_episodic_sampling(game, actions, agent)

@@ -1,23 +1,22 @@
 import numpy as np
+from agents.base_agent import BaseAgent
 
 #
 # random agent
 #
 
-class RandomAgent(object):
-    def __init__(self, device, number_of_actions):
-        super().__init__()
-        self.number_of_actions = number_of_actions
-        self.batch_size = np.inf
-
+class RandomAgent(BaseAgent):
     def get_action(self, state):
         # get a random action
-        action = np.random.randint(self.number_of_actions)
+        action = np.random.randint(self.action_size)
 
         return action
 
     def update(self):
         pass
+    
+    def train(self):
+        return np.inf
 
-    def append_memory(self, state, action, reward, next_state, done):
+    def save(self):
         pass
