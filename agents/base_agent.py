@@ -7,7 +7,7 @@ import os
 
 class BaseAgent(ABC):
     def __init__(self, device, action_size, loss_criterion=torch.nn.MSELoss(), memory_size=32, episode_memory_size=10000, batch_size=16, 
-                 opt=optim.Adam, lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
+                 opt=optim.SGD, lr=0.00025, discount_factor=0.99, epsilon=1, epsilon_decay=0.9996, epsilon_min=0.1,
                  load_model=False, log_directory_name="./logs", model_save_file_name="model.pth"):
         self.device = device
         self.action_size = action_size

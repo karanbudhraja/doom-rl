@@ -99,7 +99,7 @@ def get_results(game, agent, frame_repeat, epoch_average_loss_values, epoch_aver
         score = game.get_total_reward()
         print("Total score: ", score)
 
-def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=100, episodes_per_epoch=100, save_model=False):
+def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=10, episodes_per_epoch=100, save_model=False):
     #
     # training
     #
@@ -146,6 +146,9 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=100,
         # record data
         agent.update()
         train_scores = np.array(train_scores)
+        loss_values = np.array(loss_values)
+        print("Epoch results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()), "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
+        print("Epoch loss: mean: %.1f +/- %.1f," % (loss_values.mean(), loss_values.std()), "min: %.1f," % loss_values.min(), "max: %.1f," % loss_values.max())
 
         # testing results
         test(game, agent, frame_repeat)
@@ -154,9 +157,6 @@ def run_episodic_sampling(game, actions, agent, frame_repeat=12, num_epochs=100,
             agent.save()
 
         # get epoch statistics
-        loss_values = np.array(loss_values)
-        print("Epoch results: mean: %.1f +/- %.1f," % (train_scores.mean(), train_scores.std()), "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
-        print("Epoch loss: mean: %.1f +/- %.1f," % (loss_values.mean(), loss_values.std()), "min: %.1f," % loss_values.min(), "max: %.1f," % loss_values.max())
         epoch_average_loss_values.append(loss_values.mean())
         epoch_average_train_scores.append(train_scores.mean())
 
@@ -196,9 +196,9 @@ if __name__ == '__main__':
 
 
 
-    agent = random_agents.RandomAgent(device, len(actions))
+    # agent = random_agents.RandomAgent(device, len(actions))
     agent = q_learning_agents.QLearningAgent(device, len(actions), networks.QNet)
-
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), networks.DuelQNet)
 
 
     run_episodic_sampling(game, actions, agent)
