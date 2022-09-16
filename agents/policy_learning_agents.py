@@ -53,7 +53,7 @@ class REINFORCEAgent(BaseAgent):
 
             # get log probability of action based on policy and target networks
             # calulate importance weight
-            _actions = torch.from_numpy(actions).float().to(self.device)
+            _actions = torch.from_numpy(actions).to(self.device).reshape(-1, 1)
             policy_action_probabilities = self.policy_net(torch.from_numpy(states).float().to(self.device))
             policy_probability_model = Categorical(policy_action_probabilities)
             policy_log_probability = policy_probability_model.log_prob(_actions)
