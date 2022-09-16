@@ -111,7 +111,7 @@ class QACAgent(BaseAgent):
         # select from non-empty memory
         counts = np.array([len(x) > 0 for x in self.memory]).astype(int)
         batches = random.choices(self.memory, weights=counts, k=self.batch_size)
-        
+
         # process each episode in sample of episodes
         episode_actor_losses = []
         episode_critic_losses = []
@@ -170,7 +170,6 @@ class QACAgent(BaseAgent):
             action_values = self.current_q_net(states)[idx].float().to(self.device)
 
             # calculate loss
-            # TODO correct
             # we will take mean later, so calculate raw sum for now
             td_error = self.criterion(q_targets, action_values) * episode_sample_count
             episode_critic_losses.append(td_error)
