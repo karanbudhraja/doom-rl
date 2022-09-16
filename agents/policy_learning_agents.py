@@ -100,12 +100,13 @@ class QACAgent(BaseAgent):
         else:
             state = np.expand_dims(state, axis=0)
             state = torch.from_numpy(state).float().to(self.device)
-            action = torch.argmax(self.target_net(state)).item()
+            action = torch.argmax(self.target_policy_net(state)).item()
 
         return action
 
     def update(self):
         self.target_policy_net.load_state_dict(self.current_policy_net.state_dict())
+        self.target_q_net.load_state_dict(self.current_q_net.state_dict())
 
     def train(self):
         # select from non-empty memory
