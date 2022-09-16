@@ -190,9 +190,9 @@ if __name__ == '__main__':
     # instantiate agent
     # agent = random_agents.RandomAgent(device, len(actions))
     # agent = q_learning_agents.QLearningAgent(device, len(actions), networks.QNet)
-    agent = q_learning_agents.QLearningAgent(device, len(actions), networks.DuelQNet)
+    # agent = q_learning_agents.QLearningAgent(device, len(actions), networks.DuelQNet)
     # agent = policy_learning_agents.REINFORCEAgent(device, len(actions), networks.PolicyNet)
-    # agent = policy_learning_agents.QACAgent(device, len(actions), networks.PolicyNet, networks.DuelQNet)
+    agent = policy_learning_agents.QACAgent(device, len(actions), networks.PolicyNet, networks.DuelQNet)
 
     # gather data and train agent
     run_episodic_sampling(game, actions, agent)
