@@ -115,7 +115,7 @@ class QACAgent(BaseAgent):
         # process each episode in sample of episodes
         episode_actor_losses = []
         episode_critic_losses = []
-        episode_sample_counts = []
+        total_sample_count = 0
         for batch in batches:
             batch = np.array(batch, dtype=object)
             states = np.stack(batch[:, 0]).astype(float)
@@ -135,8 +135,8 @@ class QACAgent(BaseAgent):
             _actions = torch.from_numpy(actions).to(self.device).reshape(-1, 1)
             q_values = torch.gather(self.current_q_net(_states), 1, _actions)
             policy_action_probabilities = self.current_policy_net(_states)
-            policy_probability_model = Categorical(policy_action_probabilities)                  
-            policy_log_probability = torch.gather(policy_probability_model.log_prob(_actions), 1, _actions)
+            policy_probability_model = Categorical(policy_action_probabilities)
+            policy_log_probability = policy_probability_model.log_prob(_actions)
 
             # calculate loss
             episode_loss = -1 * policy_log_probability * q_values
@@ -148,7 +148,7 @@ class QACAgent(BaseAgent):
     
             # batch indexing
             episode_sample_count = len(rewards)
-            episode_sample_counts.append(episode_sample_count)
+            total_sample_count += episode_sample_count
             row_idx = np.arange(episode_sample_count)
 
             # value of the next states with double q learning
@@ -182,7 +182,7 @@ class QACAgent(BaseAgent):
 
         # critic gradient step
         self.q_opt.zero_grad()
-        batch_critic_loss = torch.stack(episode_critic_losses).sum() / episode_sample_counts.sum()
+        batch_critic_loss = torch.stack(episode_critic_losses).sum() / total_sample_count
         batch_critic_loss.backward()
         self.q_opt.step()
 
