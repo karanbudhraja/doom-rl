@@ -105,7 +105,7 @@ class QACAgent(BaseAgent):
         return action
 
     def update(self):
-        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_policy_net.load_state_dict(self.current_policy_net.state_dict())
 
     def train(self):
         # select from non-empty memory
@@ -134,7 +134,7 @@ class QACAgent(BaseAgent):
             _states = torch.from_numpy(states).float().to(self.device)
             _actions = torch.from_numpy(actions).float().to(self.device)
             q_values = self.current_q_net(_states)
-            policy_action_probabilities = self.policy_net(_states)
+            policy_action_probabilities = self.current_policy_net(_states)
             policy_probability_model = Categorical(policy_action_probabilities)                  
             policy_log_probability = policy_probability_model.log_prob(_actions)
 
