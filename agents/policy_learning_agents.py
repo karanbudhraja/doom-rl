@@ -56,7 +56,7 @@ class REINFORCEAgent(BaseAgent):
             _actions = torch.from_numpy(actions).to(self.device).reshape(-1, 1)
             policy_action_probabilities = self.policy_net(torch.from_numpy(states).float().to(self.device))
             policy_probability_model = Categorical(policy_action_probabilities)
-            policy_log_probability = policy_probability_model.log_prob(_actions)
+            policy_log_probability = policy_probability_model.log_prob(_actions.squeeze())
 
             # calculate loss
             _g_values = torch.tensor(g_values, requires_grad=True).float().to(self.device)
@@ -137,7 +137,7 @@ class QACAgent(BaseAgent):
             q_values = torch.gather(self.current_q_net(_states), 1, _actions)
             policy_action_probabilities = self.current_policy_net(_states)
             policy_probability_model = Categorical(policy_action_probabilities)
-            policy_log_probability = policy_probability_model.log_prob(_actions)
+            policy_log_probability = policy_probability_model.log_prob(_actions.squeeze())
 
             # calculate loss
             episode_loss = -1 * policy_log_probability * q_values
