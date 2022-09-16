@@ -84,15 +84,15 @@ class REINFORCEAgent(BaseAgent):
         pass
 
 class QACAgent(BaseAgent):
-    def __init__(self, device, action_size, q_network, policy_network):
+    def __init__(self, device, action_size, policy_network, q_network):
         super().__init__(device, action_size)
 
-        self.current_q_net = q_network(action_size).to(self.device)
         self.current_policy_net = policy_network(action_size).to(self.device)
-        self.target_q_net = q_network(action_size).to(self.device)
+        self.current_q_net = q_network(action_size).to(self.device)
         self.target_policy_net = policy_network(action_size).to(self.device)
-        self.q_opt = self._opt(self.current_q_net.parameters(), lr=self.lr)
+        self.target_q_net = q_network(action_size).to(self.device)
         self.policy_opt = self._opt(self.current_policy_net.parameters(), lr=self.lr)
+        self.q_opt = self._opt(self.current_q_net.parameters(), lr=self.lr)
 
     def get_action(self, state):
         if np.random.uniform() < self.epsilon:
@@ -132,11 +132,11 @@ class QACAgent(BaseAgent):
             # get log probability of action based on policy and target networks
             # calulate importance weight
             _states = torch.from_numpy(states).float().to(self.device)
-            _actions = torch.from_numpy(actions).float().to(self.device)
-            q_values = self.current_q_net(_states)
+            _actions = torch.from_numpy(actions).to(self.device).reshape(-1, 1)
+            q_values = torch.gather(self.current_q_net(_states), 1, _actions)
             policy_action_probabilities = self.current_policy_net(_states)
             policy_probability_model = Categorical(policy_action_probabilities)                  
-            policy_log_probability = policy_probability_model.log_prob(_actions)
+            policy_log_probability = torch.gather(policy_probability_model.log_prob(_actions), 1, _actions)
 
             # calculate loss
             episode_loss = -1 * policy_log_probability * q_values
