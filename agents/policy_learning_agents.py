@@ -87,12 +87,12 @@ class QACAgent(BaseAgent):
     def __init__(self, device, action_size, policy_network, q_network):
         super().__init__(device, action_size)
 
-        self.current_policy_net = policy_network(action_size).to(self.device)
-        self.current_q_net = q_network(action_size).to(self.device)
-        self.target_policy_net = policy_network(action_size).to(self.device)
+        self.current_actor_net = policy_network(action_size).to(self.device)
+        self.current_critic_net = q_network(action_size).to(self.device)
+        self.target_actor_net = policy_network(action_size).to(self.device)
         self.target_q_net = q_network(action_size).to(self.device)
-        self.policy_opt = self._opt(self.current_policy_net.parameters(), lr=self.lr)
-        self.q_opt = self._opt(self.current_q_net.parameters(), lr=self.lr)
+        self.policy_opt = self._opt(self.current_actor_net.parameters(), lr=self.lr)
+        self.q_opt = self._opt(self.current_critic_net.parameters(), lr=self.lr)
 
     def get_action(self, state):
         if np.random.uniform() < self.epsilon:
@@ -100,13 +100,13 @@ class QACAgent(BaseAgent):
         else:
             state = np.expand_dims(state, axis=0)
             state = torch.from_numpy(state).float().to(self.device)
-            action = torch.argmax(self.target_policy_net(state)).item()
+            action = torch.argmax(self.target_actor_net(state)).item()
 
         return action
 
     def update(self):
-        self.target_policy_net.load_state_dict(self.current_policy_net.state_dict())
-        self.target_q_net.load_state_dict(self.current_q_net.state_dict())
+        self.target_actor_net.load_state_dict(self.current_actor_net.state_dict())
+        self.target_q_net.load_state_dict(self.current_critic_net.state_dict())
 
     def train(self):
         # select from non-empty memory
@@ -134,8 +134,8 @@ class QACAgent(BaseAgent):
             # calulate importance weight
             _states = torch.from_numpy(states).float().to(self.device)
             _actions = torch.from_numpy(actions).to(self.device).reshape(-1, 1)
-            q_values = torch.gather(self.current_q_net(_states), 1, _actions)
-            policy_action_probabilities = self.current_policy_net(_states)
+            q_values = torch.gather(self.current_critic_net(_states), 1, _actions)
+            policy_action_probabilities = self.current_actor_net(_states)
             policy_probability_model = Categorical(policy_action_probabilities)
             policy_log_probability = policy_probability_model.log_prob(_actions.squeeze())
 
@@ -156,7 +156,7 @@ class QACAgent(BaseAgent):
             # see https://arxiv.org/abs/1509.06461 for more information on double q learning
             with torch.no_grad():
                 next_states = torch.from_numpy(next_states).float().to(self.device)
-                idx = row_idx, np.argmax(self.current_q_net(next_states).cpu().data.numpy(), 1)
+                idx = row_idx, np.argmax(self.current_critic_net(next_states).cpu().data.numpy(), 1)
                 next_state_values = self.target_q_net(next_states).cpu().data.numpy()[idx]
                 next_state_values = next_state_values[not_dones]
 
@@ -168,7 +168,7 @@ class QACAgent(BaseAgent):
             # this selects only the q values of the actions taken
             idx = row_idx, actions
             states = torch.from_numpy(states).float().to(self.device)
-            action_values = self.current_q_net(states)[idx].float().to(self.device)
+            action_values = self.current_critic_net(states)[idx].float().to(self.device)
 
             # calculate loss
             # we will take mean later, so calculate raw sum for now
