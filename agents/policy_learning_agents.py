@@ -56,7 +56,7 @@ class REINFORCEAgent(BaseAgent):
             _actions = torch.from_numpy(actions).float().to(self.device)
             policy_action_probabilities = self.policy_net(torch.from_numpy(states).float().to(self.device))
             policy_probability_model = Categorical(policy_action_probabilities)
-            policy_log_probability = policy_probability_model.log_prob(_actions).sum()
+            policy_log_probability = policy_probability_model.log_prob(_actions)
 
             # calculate loss
             _g_values = torch.tensor(g_values, requires_grad=True).float().to(self.device)
